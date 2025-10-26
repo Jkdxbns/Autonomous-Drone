@@ -1,4 +1,4 @@
-# 🚁  Voice-Activated, Face-Verified Autonomous Drone
+# 🚁  Voice Controller Autonomous Micro-Delivery Quadcopter
 
 ### *A 5-month journey to build a fully autonomous drone that listens, thinks, and delivers.*
 
