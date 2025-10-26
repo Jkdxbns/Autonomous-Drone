@@ -1,4 +1,4 @@
-# 🚁 JM3 Innovations — Voice-Activated, Face-Verified Autonomous Drone
+# 🚁  Voice-Activated, Face-Verified Autonomous Drone
 
 ### *A 5-month journey to build a fully autonomous drone that listens, thinks, and delivers.*
 
@@ -164,4 +164,4 @@ Power System:
 
 ### ✨ Keywords
 
-`ROS2`  `Jetson Orin Nano`  `STM32`  `Autonomous Drone`  `Computer Vision`  `Voice AI`  `Safety Engineering`  `JM3 Innovations` `Drone with Arm`
+`ROS2`  `Jetson Orin Nano`  `STM32`  `Autonomous Drone`  `Computer Vision`  `Voice AI`  `Safety Engineering` `Drone with Arm`
