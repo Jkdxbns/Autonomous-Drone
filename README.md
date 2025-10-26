@@ -115,7 +115,7 @@ Power System:
 
 > Replace all models with custom, locally-trained networks.
 
-* Self-trained models for STT, Intent, Object & Face Recognition
+* Self-trained models for STT, Intent, Object Recognition
 * Auto rerouting with GMap API integration
 * Fully functional delivery demo with local models
 * YouTube / Instagram launch and documentation release
