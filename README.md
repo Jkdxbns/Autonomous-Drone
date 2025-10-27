@@ -1,4 +1,4 @@
-# 🚁  Voice Controller Autonomous Micro-Delivery Quadcopter
+# 🚁  Voice-Activated, Face-Verified Autonomous Drone
 
 ### *A 5-month journey to build a fully autonomous drone that listens, thinks, and delivers.*
 
@@ -54,12 +54,12 @@ Power System:
 
 ## 🧩 Core Features
 
-**🎧 Voice Command & Intent Recognition** — wake-word → speech-to-text → intent → mission execution
-**🧟‍♂️ GPS Delivery** — ensures delivery to specified cordinate
-**🦭 Indoor → Outdoor Autonomy** — VIO + SLAM + GPS fusion + obstacle avoidance
-**📦 Pick-and-Place Manipulation** — 3-DOF arm (RPR configuration) for object pickup and drop-off
-**🪂 Watchdog Safety Layer** — Jetson or STM32 failure Arduino UNO takeover within < 1s
-**📡 Secure Networking** — HTTPS / MQTT over WireGuard for all telemetry and commands
+* **🎧 Voice Command & Intent Recognition** — wake-word → speech-to-text → intent → mission execution
+* **🧟‍♂️ GPS Delivery** — ensures delivery to specified cordinate
+* **🦭 Indoor → Outdoor Autonomy** — VIO + SLAM + GPS fusion + obstacle avoidance
+* **📦 Pick-and-Place Manipulation** — 3-DOF arm (RPR configuration) for object pickup and drop-off
+* **🪂 Watchdog Safety Layer** — Jetson or STM32 failure Arduino UNO takeover within < 1s
+* **📡 Secure Networking** — HTTPS / MQTT over WireGuard for all telemetry and commands
 
 ---
 
@@ -115,7 +115,7 @@ Power System:
 
 > Replace all models with custom, locally-trained networks.
 
-* Self-trained models for STT, Intent, Object Recognition
+* Self-trained models for STT, Intent, Object & Face Recognition
 * Auto rerouting with GMap API integration
 * Fully functional delivery demo with local models
 * YouTube / Instagram launch and documentation release
