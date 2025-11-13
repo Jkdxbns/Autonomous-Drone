@@ -1,0 +1,274 @@
+Nano MPU6050 Flight Controller (Pure C) — Detailed Workflow
+
+Overview
+- Purpose: A modular, pure AVR C (no Arduino) flight controller for Arduino Nano (ATmega328P) with MPU6050 IMU.
+- Features: TWI (I2C) @ 400 kHz, MPU6050 FIFO + DATA_READY interrupt (INT0), Mahony AHRS, cascaded Angle→Rate PID, in-air rate autotune (Kp sweep), Timer1 microsecond ESC PWM on D3..D6, UART 9600 CLI.
+- Architecture: Small orchestrator in src/main.c wires cohesive modules: timebase, serial_actions, mpu, calibration, filter, pid, autotune, motor_control.
+
+Hardware/Platform
+- MCU: ATmega328P @ 16 MHz (Arduino Nano)
+- IMU: MPU6050 (I2C address 0x68 with AD0 low)
+- I2C pins: A4 (SDA), A5 (SCL), external pull-ups ~4.7 kΩ recommended
+- INT pin: D2 (INT0) from MPU6050 DATA_READY (rising edge)
+- ESC outputs: D3..D6 digital pins, pulses in microseconds, 20 ms frame
+
+Build
+- Language: C (gnu11)
+- Link: libm (-lm) for float math
+- Only .c sources are compiled; no C++/Arduino framework
+
+High-Level Dataflow
+1) Boot
+   - timebase_init() → sets 1 ms Timer0 millis
+  - serial_init(9600) → UART 9600 8N1
+   - mpu_init() → TWI init + enable INT0 (rising edge)
+   - Global interrupts enabled (sei)
+   - mpu_configure(DLPF_CFG_DEFAULT=3, SMPLRT_DIV_DEFAULT=9)
+   - Calibration sequence:
+     - calib_calibrate_gyro(1000, SMPLRT_DIV_DEFAULT)
+     - calib_calibrate_accel_flat(500, SMPLRT_DIV_DEFAULT)
+   - motor_init_pwm() → starts Timer1-driven ESC output engine
+   - filter_init() → reset Mahony state
+   - Install serial hooks (arm/disarm, probe, autotune roll/pitch, show, set)
+
+2) Loop (main control loop in src/main.c)
+   - serial_poll(): process UART RX lines and trigger hooks
+   - If mpu_data_ready():
+     - mpu_clear_data_ready()
+     - Read FIFO count; guard and reset on overflow
+     - Drain available packets (12 bytes per accel+gyro sample)
+       - Apply calibration offsets (gyro bias, accel flat)
+       - Convert to units: dps (gyro), g (accel)
+       - filter_mahony_update() with gyro (rad/s) + accel (g)
+       - filter_get_euler() → roll/pitch/yaw (deg)
+       - Run state machine branch (probe/autotune/hover/landing)
+         - Compute angle-rate cascaded PIDs
+         - motor_mix_and_send() → ESC microseconds on D3..D6
+
+States and Transitions
+- ST_DISARMED: throttle = 0, motors minimum
+- ST_READY: throttle = 0, awaiting commands (arm done)
+- ST_PROBE: ramps throttle to hover and checks guardrails
+  - Abort to ST_LANDING on sustained angle (>12 deg for >150 ms) or rate (>200 dps for >100 ms)
+  - After stable period (2000 ms), transition to ST_AUTOTUNE_ROLL (if autoTuneOnStart) or ST_HOVER
+- ST_AUTOTUNE_ROLL / ST_AUTOTUNE_PITCH: Kp sweep method
+  - Increase rate Kp until oscillations observed (zero-crossings and amplitude)
+  - Estimate Ku (ultimate gain), Pu (period) from crossings
+  - Set Tyreus–Luyben rate PID (Kp = 0.45Ku, Ti = 2.2Pu, Td = 0.16Pu; Ki=Kp/Ti, Kd=Kp*Td)
+  - Roll then Pitch; after pitch, go to ST_HOVER
+- ST_HOVER: throttle = throttleHover; angle PID creates rate commands; rate PIDs stabilize
+- ST_LANDING: ramp throttle down each loop; when <=0, ST_DISARMED
+
+Modules and Functions
+
+1) Timebase (include/timebase.h, src/timebase.c)
+- timebase_init():
+  - Timer0 in CTC mode (WGM01=1), prescaler=64 (CS01|CS00=1), OCR0A=249 → 1 ms tick
+  - Enables ISR(TIMER0_COMPA_vect)
+  - Registers: TCCR0A, TCCR0B, OCR0A, TIMSK0
+- ISR(TIMER0_COMPA_vect): increments g_millis
+- millis(): returns atomic 32-bit millisecond counter
+- delay_ms(ms): busy-wait using millis()
+
+2) Serial + Commands (include/serial_actions.h, src/serial_actions.c)
+- serial_init(baud):
+  - UART double speed (UCSR0A.U2X0=1)
+  - UBRR = F_CPU/(8*baud) - 1 → for 9600 ≈ 207
+  - Enable RX/TX (UCSR0B.RXEN0/TXEN0), 8N1 (UCSR0C.UCSZ01:0 = 3)
+  - Registers: UCSR0A/B/C, UBRR0H/L, UDR0
+- serial_set_hooks(hooks): sets callbacks for commands
+- serial_poll():
+  - Line-buffered parser on '\n'; commands:
+    - arm, disarm → on_arm(1/0)
+    - probe → on_probe()
+    - tune rate roll → on_tune_roll()
+    - tune rate pitch → on_tune_pitch()
+    - show → on_show()
+    - set <key> <val> → on_set_param(key, val)
+- serial_print*, serial_println, serial_print_int/uint/float: logging helpers
+
+3) MPU/TWI (include/mpu.h, src/mpu.c)
+- TWI low-level:
+  - twi_init_internal(): TWSR=0 (prescaler=1), TWBR=12 (~400 kHz), TWCR.TWEN=1 (enable)
+  - twi_start_addr(addr|R/W), twi_write(byte), twi_read_ack(), twi_read_nack(), twi_stop()
+  - Registers: TWSR, TWBR, TWCR, TWDR
+- INT0 (DATA_READY):
+  - mpu_init(): sets EICRA ISC01|ISC00=1 (rising edge), EIMSK.INT0=1
+  - ISR(INT0_vect): sets g_mpuDataReady=1
+  - mpu_data_ready(), mpu_clear_data_ready()
+  - Registers: EICRA, EIMSK; Vector: INT0_vect
+- MPU config (mpu_configure(dlpf_cfg, smplrt_div)):
+  - REG_PWR_MGMT_1=0x01 (PLL with X gyro), delay 10 ms
+  - REG_CONFIG = dlpf_cfg (0..7); default 3 (~44 Hz)
+  - REG_SMPLRT_DIV = smplrt_div; default 9 (1000/(1+9)=100 Hz)
+  - REG_GYRO_CONFIG = 0x08 (±500 dps)
+  - REG_ACCEL_CONFIG = 0x08 (±4 g)
+  - REG_INT_ENABLE = 0x01 (DATA_RDY_EN)
+  - REG_INT_PIN_CFG = 0x00 (active-high, push-pull, latch disabled)
+  - FIFO reset and enable accel+gyro: REG_USER_CTRL=0x04 (reset), then 0x40; REG_FIFO_EN=0x78
+- FIFO helpers:
+  - mpu_fifo_count(): reads REG_FIFO_COUNTH/L
+  - mpu_fifo_reset(), mpu_fifo_enable_accel_gyro()
+  - mpu_fifo_read(buf,len): burst reads from REG_FIFO_R_W
+- Raw reads (calibration): mpu_read_accel_gyro_raw()
+- MPU register summary used:
+  - SMPLRT_DIV(0x19), CONFIG(0x1A), GYRO_CONFIG(0x1B), ACCEL_CONFIG(0x1C),
+    FIFO_EN(0x23), INT_PIN_CFG(0x37), INT_ENABLE(0x38), INT_STATUS(0x3A),
+    ACCEL_XOUT_H(0x3B..), USER_CTRL(0x6A), FIFO_COUNTH/L(0x72/0x73),
+    FIFO_R_W(0x74), WHO_AM_I(0x75), PWR_MGMT_1(0x6B)
+
+4) Calibration (include/calibration.h, src/calibration.c)
+- calib_calibrate_gyro(samples, smplrt_div):
+  - Loops N samples, summing gx, gy, gz from mpu_read_accel_gyro_raw()
+  - delay_ms(1000/(1+smplrt_div)) between samples
+  - Computes average biases (LSB) stored internally
+- calib_calibrate_accel_flat(samples, smplrt_div):
+  - Loops N samples, summing ax, ay, az
+  - Computes average accel offsets; subtracts +1g on Z (8192 LSB for ±4g)
+- calib_get_gyro_bias(), calib_get_acc_offs(): getters used in main loop
+
+5) Filter (include/filter.h, src/filter.c)
+- Mahony AHRS (selected for simplicity, low cost, good roll/pitch without mag):
+  - filter_init(): resets quaternion (q0=1) and integral error
+  - filter_mahony_update(gx, gy, gz, ax, ay, az, dt):
+    - Normalize accel vector
+    - Compute estimated gravity in body frame (v)
+    - Error e = a × v (proportional to tilt error)
+    - Integrate error (Ki) and add to gyro (bias rejection)
+    - Quaternion derivative from corrected gyro; integrate with dt
+    - Renormalize quaternion
+  - filter_get_euler(): computes roll/pitch/yaw in degrees
+- Gains: Kp=2.5, Ki=0.02 (can be exposed later)
+- Units: Gyro must be in rad/s; accel in g (normalized internally)
+
+6) PID (include/pid.h)
+- PID struct {kp, ki, kd, iTerm, prev}
+- pid_step(p, setpoint, measured, dt, iLimit):
+  - err = setpoint - measured
+  - iTerm += ki*err*dt, clamped to ±iLimit (anti-windup)
+  - d = (measured - prev)/dt (derivative on measurement)
+  - u = kp*err + iTerm - kd*d
+- pid_reset(): clears integrator and prev
+
+7) Autotune (include/autotune.h, src/autotune.c)
+- Kp sweep autotune for rate loop (per axis):
+  - autotune_reset(ctx): initialize fields
+  - autotune_step(ctx, pidRate, rateMeas, dt, throttleHover, log, logkvf, millis):
+    - Sweep Kp upwards in steps (every ~600 ms)
+    - Detect oscillations via zero-crossings sign changes; accumulate Pu (period) and track amplitude
+    - Terminate when sufficient crossings (≥6) and amplitude > threshold
+    - Ku = current Kp at oscillation; Pu = avg period
+    - Tyreus–Luyben: Kp=0.45Ku, Ti=2.2Pu, Td=0.16Pu → Ki=Kp/Ti, Kd=Kp*Td
+    - Apply to pidRate and return finished=1
+- In main.c: used in ST_AUTOTUNE_ROLL and ST_AUTOTUNE_PITCH; outputs are held at throttleHover with single-axis control signal during tuning
+
+8) Motor Control (include/motor_control.h, src/motor_control.c)
+- motor_init_pwm():
+  - Pins D3..D6 (PORTD3..6) configured as outputs, low initially
+  - Timer1 CTC mode (WGM12=1), prescaler=8 (CS11=1), tick = 0.5 µs
+  - ISR(TIMER1_COMPA_vect) schedules four non-overlapping off-events within a 20 ms frame (40000 ticks)
+  - Sorting: per-frame, sort channels by off time to schedule OCR1A deltas correctly
+- ISR(TIMER1_COMPA_vect):
+  - escState cycles through 0..3 to turn off each motor pin at the right time
+  - After last off, schedule remainder of 20 ms frame, then new frame: latch next escShadowUs[] into escActiveUs[] and raise all pins
+- motor_send_us(m1..m4): clamps to [1000..2000] µs and updates escShadowUs
+- motor_mix_and_send(throttle, uRoll, uPitch, uYaw):
+  - Quad X mix:
+    m1 = throttle + uRoll + uPitch - uYaw  (Front-Left)
+    m2 = throttle - uRoll + uPitch + uYaw  (Front-Right)
+    m3 = throttle - uRoll - uPitch - uYaw  (Rear-Right)
+    m4 = throttle + uRoll - uPitch + uYaw  (Rear-Left)
+  - Renormalize if negatives or if max>1.0, then convert to microseconds and send
+
+Main Orchestrator (src/main.c)
+- Globals:
+  - FCState fcState, armed flag, throttle, throttleHover=0.5, throttleSlew=0.01
+  - Probe guardrails: PROBE_MAX_ANGLE_DEG=12, PROBE_MAX_RATE_DPS=200, times (150/100/2000 ms)
+  - PIDs: angle roll/pitch; rate roll/pitch/yaw (initial guesses)
+  - AutoTuneCtx at_roll, at_pitch
+- Setup (main):
+  - cli(); timebase_init(); serial_init(9600); mpu_init(); sei();
+  - mpu_configure(DLPF=3, SMPLRT_DIV=9)
+  - calib_calibrate_gyro(1000, 9); calib_calibrate_accel_flat(500, 9)
+  - motor_init_pwm(); filter_init(); serial_set_hooks(...)
+  - sampleDt = 1 / (1000/(1+SMPLRT_DIV_DEFAULT)) ≈ 0.01 s @ div=9
+- Loop:
+  - serial_poll()
+  - if (!mpu_data_ready()) continue; mpu_clear_data_ready()
+  - Read FIFO count; if >=1024: mpu_fifo_reset(); mpu_fifo_enable_accel_gyro(); continue
+  - while (count >= 12):
+    - mpu_fifo_read(buf,12) → ax,ay,az,gx,gy,gz (16-bit)
+    - Get biases/offsets via calib_get_* and subtract
+    - Convert units: dps (gyro)/g (accel)
+    - filter_mahony_update(gx*DEG2RAD, gy*DEG2RAD, gz*DEG2RAD, ax, ay, az, sampleDt)
+    - filter_get_euler(&roll,&pitch,&yaw)
+    - State machine:
+      - DISARMED/READY: throttle=0
+      - PROBE: slew throttle toward hover; guardrails with timers; stable→tune or hover
+      - AUTOTUNE_ROLL: autotune_step(&at_roll, &pidRateRoll, gx_dps, ...); u = pid_step(rateRoll,...); motor_mix_and_send(throttleHover, u, 0, 0)
+      - AUTOTUNE_PITCH: analogous on gy_dps for pitch
+      - HOVER: throttle=hover; compute angle PIDs to rate setpoints, then rate PIDs → mixer
+      - LANDING: reduce throttle until disarm
+
+Settings and Tunables (fc_common.h and main.c)
+- IMU:
+  - DLPF_CFG_DEFAULT = 3 (~44 Hz bandwidth)
+  - SMPLRT_DIV_DEFAULT = 9 (100 Hz sample rate)
+  - Sensitivities: gyro=65.5 LSB/(deg/s) (±500 dps), accel=8192 LSB/g (±4 g)
+- Motors/ESC:
+  - Range: 1000..2000 µs; frame: 20000 µs; tick: 0.5 µs (Timer1 prescaler=8)
+- Autotune thresholds:
+  - Step interval ~600 ms; amplitude threshold >20 dps; zero-crossings ≥6
+- Probe guardrails:
+  - Angle >12 deg for >150 ms; Rate >200 dps for >100 ms; stable for >2000 ms
+- PIDs (initial):
+  - Angle Roll/Pitch: Kp=6.0, Ki=0, Kd=0
+  - Rate Roll/Pitch: Kp=0.12, Ki=0.08, Kd=0.003
+  - Rate Yaw: Kp=0.10, Ki=0.05, Kd=0.0
+- Mahony: Kp=2.5, Ki=0.02
+- CLI: throttle_hover default 0.5; on_set_param updates gains and throttle at runtime
+
+Interrupts Used
+- TIMER0_COMPA_vect: 1 ms tick for millis()
+- INT0_vect: on MPU6050 DATA_READY rising edge; sets data-ready flag
+- TIMER1_COMPA_vect: ESC pulse scheduler for four overlapping PWM outputs
+
+Error Handling and Safety
+- FIFO overflow: detect via mpu_fifo_count() ≥ 1024; reset FIFO and re-enable streams; skip frame
+- Probe guardrails: abort to landing on instability
+- Landing: gently ramp down throttle to disarm
+- Anti-windup: PID integrator clamped by iLimit parameter (200.0 used in calls)
+
+Why Mahony Filter?
+- Pros: Low computational cost; good roll/pitch with only gyro/accel; built-in gyro bias rejection via Ki term; no magnetometer required
+- Cons: Yaw drifts without mag; acceptable for this project scope
+
+Porting/Extensibility Notes
+- 50 Hz profile: adjust DLPF_CFG_DEFAULT and SMPLRT_DIV_DEFAULT; document delay/group delay trade-offs
+- EEPROM: persist calib and PID gains (add eeprom_read/write wrappers)
+- RC input: add PPM/SBUS decoder module; feed setpoints into angle loop
+- Integer filters: add EMA / moving average / median in a new module for sensor prefiltering
+- Safe relay autotune: a separate autotune mode with props off/tether; oscillate relay output and measure Ku/Pu
+
+File Map
+- include/
+  - fc_common.h
+  - timebase.h
+  - serial_actions.h
+  - mpu.h
+  - calibration.h
+  - filter.h
+  - pid.h
+  - autotune.h
+  - motor_control.h
+- src/
+  - timebase.c
+  - serial_actions.c
+  - mpu.c
+  - calibration.c
+  - filter.c
+  - autotune.c
+  - motor_control.c
+  - main.c
+
+End of workflow
