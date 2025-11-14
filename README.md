@@ -1,391 +1,168 @@
-# Flask AI Assistant Server
+# 🚁  Voice Controller Autonomous Micro-Delivery Quadcopter
 
-**Version:** 8.0  
-**Last Updated:** November 14, 2025  
-**Status:** ✅ Ready
-
-A powerful Flask-based REST API server providing Speech-to-Text transcription, AI assistant capabilities with intelligent task categorization, device management, and Bluetooth control integration.
+### *A 5-month journey to build a fully autonomous drone that listens, thinks, and delivers.*
 
 ---
 
-## 🚀 Quick Start
+## 🎯 Project Vision
 
-```bash
-# Install dependencies
-pip install -r requirements.txt
+The **Drone Project** is a five-month R&D challenge to build a
+**voice-activated micro-delivery drone** capable of:
 
-# Configure Gemini API key
-echo {"gemini_api_key": "YOUR_KEY"} > secrets/apis.json
+* Responding to voice commands from a custom Android app
+* Navigating both **indoors and outdoors** using SLAM, GPS, and sensor fusion
+* Picking and delivering small objects with a **3D-printed robotic arm**
+* Executing automatic safety behaviors like emergency landing, watchdog recovery, link-loss actions and return-to-home
 
-# Run server
-python main.py
-```
-
-**Server runs on**: `http://0.0.0.0:5000`
+This project aims to merge **embedded systems, edge AI, perception and human-robot interaction**
+into one unified, real-world demonstration.
 
 ---
 
-## ✨ Key Features
+## 🧠 System Overview
 
-### 🎤 Speech-to-Text
-- **Whisper Model Integration**: Multiple model sizes (tiny, base, small, medium)
-- **Fast Processing**: Using faster-whisper (4x faster than original)
-- **Multi-language Support**: English and multilingual options
-- **CPU & GPU Support**: Automatic CUDA detection
-
-### 🤖 AI Assistant
-- **Two-Pass Architecture**: prompt categorization → specialized processing
-- **Task Categories**:
-  - **Text Generation**: Conversational responses with streaming
-  - **Bluetooth Control**: Device command generation with validation
-- **Smart Context Injection**: Device registry provided only when needed
-- **Format Validation**: Retry mechanism for command accuracy
-
-### 📱 Device Management
-- **Auto-Registration**: Devices register automatically via headers
-- **MAC Address Tracking**: Hardware-based identification
-- **Status Monitoring**: Real-time online/offline tracking (2-minute timeout)
-- **Heartbeat System**: 60-second periodic updates keep devices online
-- **Connection Events**: Immediate status updates on BT connect/disconnect
-- **Custom Names**: User-assignable device names with sync
-
-### 🔌 Bluetooth Control
-- **Device Registry**: JSON-based device catalog with MAC addresses
-- **Output Format Validation**: Configurable command formats per device/actuator
-- **Command Generation**: Gemini-powered natural language → device command
-- **Retry Logic**: Automatic correction for invalid commands
-
-### 🔄 Real-Time Streaming
-- **Server-Sent Events (SSE)**: Live response streaming
-- **Status Updates**: Progress notifications during processing
-- **Chunked Responses**: Immediate display of generated text
+| Layer                            | Description                                                                                                                  |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| **Android App**                  | Interface for commands and speech-to-text. Sends missions to server over HTTPS via WireGuard VPN.                            |
+| **Server (BeagleBone / Laptop)** | Acts as a relay hub handling authentication and command routing to Jetson.                                                   |
+| **Jetson Orin Nano**             | Runs ROS 2 Humble, SLAM, object detection and mission control. Converts incoming JSON commands to real-time tasks.           |
+| **STM32 Nucleo (FreeRTOS)**      | Handles all low-level control: motor PWM, IMU fusion, watchdog timer, and emergency-landing state machine.                   |
+| **Custom Safety WDC**            | Windowed watchdog + PWM multiplexer                                                                                          |
+| **3D-Printed Arm**               | 4× 15 kg·cm servos, 2 links, 3 DOF + 4-finger claw, payload ≈ 1 lb.                                                          |
+| **Networking**                   | LTE/Wi-Fi with WireGuard overlay for secure telemetry with RF as a redundant connectivity oiption                            |
+| **Sensors**                      | IMU (MPU6050/BMI088), Barometer (BMPxxx), Optical Flow (PMW3901/MTS-01P), TFmini/TFLune LiDAR (top & bottom), GPS            |
 
 ---
 
-## 🏗️ Architecture
-
-### Project Structure
+## ⚙️ Hardware Architecture
 
 ```
-FlaskServer_v8/
-├── main.py                          # Application entry point
-├── requirements.txt                 # Python dependencies
-├── device_registry.json             # Device tracking & status
-│
-├── config/                          # Configuration layer
-│   ├── settings.py                  # Server settings & paths
-│   └── secrets.py                   # API key management
-│
-├── services/                        # Business logic layer
-│   ├── assistant_service.py         # Two-pass AI assistant logic
-│   ├── device_service.py            # Device management
-│   ├── stt_service.py               # Speech-to-text operations
-│   ├── lm_service.py                # Language model generation
-│   └── catalog_service.py           # Model catalog
-│
-├── core/                            # Core utilities
-│   ├── whisper_loader.py            # Whisper model loading
-│   ├── gemini_loader.py             # Gemini API initialization
-│   └── utils.py                     # Helper functions
-│
-├── models/                          # Data models
-│   ├── device_model.py              # Device registry persistence
-│   ├── model_catalog.json           # Available AI models
-│   └── __models__/                  # Whisper model cache
-│
-├── routes/                          # API endpoints
-│   ├── health_routes.py             # Health check & catalog
-│   ├── assistant_routes.py          # AI assistant endpoint
-│   ├── device_routes.py             # Device management
-│   ├── heartbeat_routes.py          # Device heartbeat & status
-│   └── lm_routes.py                 # Legacy STT+LM endpoint
-│
-├── prompt_templates/                # AI prompts
-│   ├── pass1_categorization.txt     # Task categorization
-│   ├── pass2_task_prompts.json      # Task-specific prompts
-│   └── task_schemas.json            # Response schemas
-│
-├── scripts/                         # Testing & utilities
-│   ├── test_assistant_endpoint.py   # Assistant API tests
-│   ├── test_device_lookup.py        # Device tracking tests
-│   └── download_whisper_models.py   # Model downloader
-│
-└── secrets/                         # API keys (gitignored)
-    └── apis.json                    # Gemini API key
+Android  →  Server (WireGuard)  →  Jetson Orin Nano  →  STM32 (UART) + Safety PCB (Watchdog / MUX)
+                                    |                       │
+                                    └── 2x IMX477 cameras   ├── Sensors (IMU, LiDAR, Flow, Baro, GPS)
+                                                            └── Robotic Arm (PWM control)
 ```
 
-### Architectural Layers
+Power System:
 
-1. **Configuration** (`config/`): Centralized settings and secrets
-2. **Services** (`services/`): Business logic, isolated and testable
-3. **Core** (`core/`): Reusable utilities and model loaders
-4. **Routes** (`routes/`): Thin HTTP controllers, delegate to services
-5. **Models** (`models/`): Data persistence and schemas
+* 2 × Li-Po 3S 8000 mAh packs
+* 1 x Li-Po 3S 2200 mAh pack
+* 4 x A2212-2200 KV motors + 30 A SimonK ESCs
+* 10″ propellers with prop-guards for safety
 
 ---
 
-## 🔌 API Endpoints
+## 🧩 Core Features
 
-### Core Endpoints
-
-| Endpoint | Method | Purpose |
-|----------|--------|---------|
-| `/health` | GET | Server health check |
-| `/catalog` | GET | Available STT and LM models |
-
-### AI Assistant
-
-| Endpoint | Method | Purpose |
-|----------|--------|---------|
-| `/api/v1/assistant/handle` | POST | Two-pass AI assistant (text generation or BT control) |
-
-**Request (Text Generation)**:
-```json
-{
-  "user_query": "What is photosynthesis?"
-}
-```
-
-**Response**: SSE stream with generated text chunks
-
-**Request (Bluetooth Control)**:
-```json
-{
-  "user_query": "turn on the <your_bt_device_custom_name> lights"
-}
-```
-
-**Response**:
-```json
-{
-  "task": "bt-control",
-  "target-device": "<your_bt_device_custom_name> (MAC: A1:B2:C3:D4:E5:F6)",
-  "output": {
-    "actuator": "lights",
-    "generated_output": "ON"
-  }
-}
-```
-
-### Device Management
-
-| Endpoint | Method | Purpose |
-|----------|--------|---------|
-| `/device/list` | GET | Get all registered devices |
-| `/device/<id>/name` | PUT | Update device custom name |
-| `/device/<id>/name` | DELETE | Clear device custom name |
-| `/device/heartbeat` | POST | Device heartbeat (keeps online) |
-| `/device/connection-status` | POST | Report BT connect/disconnect |
-
-### Legacy Endpoints
-
-| Endpoint | Method | Purpose |
-|----------|--------|---------|
-| `/process` | POST | Audio/text processing (STT + LM) |
-| `/generate` | POST | Direct LM text generation |
+**🎧 Voice Command & Intent Recognition** — wake-word → speech-to-text → intent → mission execution
+**🧟‍♂️ GPS Delivery** — ensures delivery to specified cordinate
+**🦭 Indoor → Outdoor Autonomy** — VIO + SLAM + GPS fusion + obstacle avoidance
+**📦 Pick-and-Place Manipulation** — 3-DOF arm (RPR configuration) for object pickup and drop-off
+**🪂 Watchdog Safety Layer** — Jetson or STM32 failure Arduino UNO takeover within < 1s
+**📡 Secure Networking** — HTTPS / MQTT over WireGuard for all telemetry and commands
 
 ---
 
-## 🧠 AI Assistant System
+## 🗓️ 5-Month Development Roadmap (Oct 25 → Mar 25)
 
-### Two-Pass Architecture
+### **Month 1 — Phase I : Proof of Concept (Oct 25 → Nov 25)**
 
-**Pass 1: Categorization**
-- Input: User query (e.g., "turn on drone lights")
-- Output: Task category (`text-generation` or `bt-control`)
-- **Key Feature**: NO device list provided → reduces token cost
+> Working prototype of the drone, arm, and Android app.
 
-**Pass 2: Specialized Processing**
-
-**For Text Generation**:
-- Streams conversational response via SSE
-- Returns chunk-by-chunk for immediate display
-
-**For Bluetooth Control**:
-- Device registry injected (only when needed)
-- Generates structured command JSON
-- Validates against device output formats
-- Retries if command invalid (up to 3 attempts)
-
-### Task Categorization
-
-**text-generation**: General questions, conversations, information requests
-- Examples: "What is gravity?", "Tell me a joke", "Explain quantum physics"
-
-**bt-control**: Device control commands
-- Examples: "turn on lights", "start the motor", "set color to red"
-
-### Device Registry Format
-
-```json
-{
-  "A1:B2:C3:D4:E5:F6": {
-    "name": "Drone Controller",
-    "type": "bluetooth",
-    "output_formats": {
-      "lights": ["ON", "OFF"],
-      "motor": ["START", "STOP", "FORWARD", "BACKWARD"]
-    }
-  }
-}
-```
+* Bring-up Jetson↔STM32 UART link with interrupt and telemetry
+* Implement basic flight & arm movements (hover, rotate and land for drone | set-2-positions for arm)
+* Android app → server → Jetson → STM | communication chain over HTTP + WireGuard
+* Validate IMU / LiDAR / Optical Flow sensor readings
 
 ---
 
-## 📦 Installation & Setup
+### **Month 2 — Phase II : Secure Voice AI Integration (Nov 25 → Christmas)**
 
-### Prerequisites
-- **Python**: 3.8 or higher
-- **Storage**: 3+ GB for Whisper models + 3GB for virtual-env
-- **Gemini API Key**: Get from https://makersuite.google.com/app/apikey
+> Add voice control, AI perception, and ROS 2 integration.
 
-### Installation Steps
-
-```bash
-# 1. Install dependencies
-pip install -r requirements.txt
-
-# 2. Configure Gemini API key
-mkdir secrets
-echo {"gemini_api_key": "YOUR_GEMINI_API_KEY"} > secrets/apis.json
-
-# 3. (Optional) Pre-download Whisper models
-python scripts/download_whisper_models.py
-
-# 4. Start server
-python main.py
-```
-
-### Verify Installation
-
-```bash
-# Health check
-curl http://localhost:5000/health
-
-# Get model catalog
-curl http://localhost:5000/catalog
-```
+* On-device wake-word + 2FA confirmation
+* Multi-device server connections (phone / laptop / Jetson)
+* VIO SLAM + object detection pipelines
+* STM32 + Arduino UNO watchdog co-testing
+* ROS 2 Humble stack setup for telemetry and visualization
 
 ---
 
-## 🧪 Testing
+### **Month 3 — Phase III : Object Pick & Outdoor Navigation (Jan → Feb 1)**
 
-### Run Test Scripts
+> Extend autonomy and begin real pick-and-place trials.
 
-```bash
-# Test AI assistant endpoint
-python scripts/test_assistant_endpoint.py
-
-# Test device tracking
-python scripts/test_device_lookup.py
-
-# Test all routes
-scripts\test_all_routes.bat
-```
-
-### Manual Testing Examples
-
-```bash
-# Text generation
-curl -X POST http://localhost:5000/api/v1/assistant/handle \
-  -H "Content-Type: application/json" \
-  -d "{\"user_query\": \"What is an apple?\"}"
-
-# Bluetooth control
-curl -X POST http://localhost:5000/api/v1/assistant/handle \
-  -H "Content-Type: application/json" \
-  -d "{\"user_query\": \"turn on drone lights\"}"
-```
+* Indoor → outdoor navigation with GPS + magnetometer + SLAM
+* Target detection → grasp → deliver
+* Google Maps API for path planning & auto-rerouting
+* Drift correction via Nano controller
+* Speed range validation 30 cm/s → 5 m/s
 
 ---
 
-## ⚙️ Configuration
+### **Month 4 — Phase IV : Full Autonomy & Dataset Build (Feb → Mar 1)**
 
-### Server Settings
+> Achieve reliable end-to-end autonomy.
 
-Edit `main.py`:
-```python
-app.run(
-    host="0.0.0.0",  # Listen on all interfaces
-    port=5000,       # Port number
-    debug=False      # Production: False, Development: True
-)
-```
-
-### Environment Variables
-
-```bash
-# Gemini API Key (alternative to apis.json)
-export GEMINI_API_KEY="your_key_here"
-```
-
-### Firewall Configuration (Windows)
-
-```bash
-# Allow incoming connections on port 5000
-netsh advfirewall firewall add rule name="Flask Server" dir=in action=allow protocol=TCP localport=5000
-```
+* Complete indoor ↔ outdoor transition
+* Object delivery + return-to-home sequence
+* Dataset collection for model training
+* Watchdog and safety system stress tests
 
 ---
 
-## 📱 Mobile App Integration
+### **Month 5 — Phase V : “Coffin” → Final Build and Launch (Mar → Mar 30)**
 
-1. **Configure Server URL** in app settings:
-   - Host: Your server IP (e.g., `192.168.0.168`)
-   - Port: `5000`
+> Replace all models with custom, locally-trained networks.
 
-2. **Device Headers**: App must send:
-   ```
-   X-Device-Id: <uuid>
-   X-Device-Name: <device name>
-   X-Device-Model: <model>
-   X-Device-MAC: <MAC address>
-   ```
-
-3. **Heartbeat**: App should POST to `/device/heartbeat` every 60 seconds
+* Self-trained models for STT, Intent, Object Recognition
+* Auto rerouting with GMap API integration
+* Fully functional delivery demo with local models
+* YouTube / Instagram launch and documentation release
 
 ---
 
-## 🐛 Troubleshooting
+## 🧮 Current Targets & Metrics
+### Will be updated as per progress
 
-### "Gemini API error"
-- Verify API key in `secrets/apis.json`
-- Check quota at https://makersuite.google.com/
-- Try switching model in `gemini_loader.py`
-
-### "Device not found" error
-- Check `device_registry.json` has device entry
-- Verify MAC address matches exactly
-- Ensure device name in query matches registry
-
-### Devices going offline
-- Check app sends heartbeat every 60 seconds
-- Verify heartbeat route working: check server logs
-- Status timeout is 2 minutes (configurable in `device_model.py`)
+| Category                 | Target                       | Status                         |
+| ------------------------ | ---------------------------- | ------------------------------ |
+|                          |                              |                                |
 
 ---
 
-## 📊 Performance
+## 🔒 Safety Architecture
 
-### Whisper STT
-- **CPU**: ~2-5 seconds per 10 sec audio
-- **GPU (CUDA)**: ~0.5-2 seconds per 10 sec audio
-
-### Gemini LM
-- **Streaming**: Immediate response display
-- **First token**: ~1-3 seconds
-- **Cost optimization**: Two-pass reduces tokens by ~60%
-
----
-
-## 🔒 Security Considerations
-
-### Development (Current)
-✅ Fine for local network testing
-✅ Use Tailscale or similar VPN service for cross-network connection
-
+* **Dual-MCU Control:** Jetson (AI brain) + STM32 (real-time failsafe)
+* **Windowed Watchdog:** detects Jetson hang → PWM MUX → ramp-down PWM to ESCs
+* **Supervisor FSM:** Healthy → Request_Land → Takeover → Power_Cut → Emergency
+* **E-Stop:** physical button + software interrupt with ≤ 2s response
+* **Battery & Power Protection:** current sensors + ...
+* **Safety SOPs:** pre-flight checklist, geofence limits, post-flight logs
+* **POST:** Power-On-Self-Test + resource/feasibility check
 
 ---
 
-**Ready to serve intelligent AI assistance! 🚀**
+## 🛠️ Software Stack
 
+* **Languages:** C (bare-metal STM32), Python (ROS nodes), C++ (rclcpp), Java (Android) + ...
+* **Frameworks:** ROS 2 Humble, TensorRT, OpenCV, PyTorch (Light)
+* **Simulation:** AirSim + Gazebo or RViz
+* **Networking:** WireGuard VPN, HTTPS/MQTT, RF
+* **CI & Reproducibility:** Docker Devcontainers (Optional), GitHub 
+
+---
+
+## 🎥 Follow the Build Journey
+
+📸 Instagram → [@jm3innovations](https://www.instagram.com/jm3innovations)
+🎥 YouTube → [JM3 Innovations](https://www.youtube.com/@jm3innovations)
+🐙 GitHub → [This Repository](https://github.com/Jkdxbns/Autonomous-Drone)
+
+> *Daily-Weekly posts from Oct 2025 to Mar 2026 documenting each milestone, hardware build, and flight demo.*
+
+---
+
+### ✨ Keywords
+
+`ROS2`  `Jetson Orin Nano`  `STM32`  `Autonomous Drone`  `Computer Vision`  `Voice AI`  `Safety Engineering` `Drone with Arm`
