@@ -128,17 +128,16 @@ Power System:
 
 |          Category        |             Target              |           Status               |
 | ------------------------ | ------------------------------- | ------------------------------ |
-| ----------------------------------- [MONTH - 1] ------------------------------------------- |
-|    Flutter App           | - connect with HM-10            |           SUCCESS              |
+|    Flutter App | - connect with HM-10            |           SUCCESS              |
 |                          | - convert audio commadands to exeecutable commands   |           |
-|    Flask Server          | - run STT (whisper) locally     |           SUCCESS              |
+|    Flask Server | - run STT (whisper) locally     |           SUCCESS              |
 |                          | - use LM (api) to obtain text categorization and executable  |   |
 |                          |   command                       |                                |
-|     Robotic Arm          | - Control arm to given end point using IK equations|  Not Started|
+|     Robotic Arm | - Control arm to given end point using IK equations|  Not Started|
 |                          | - Identify stated object and locate   |                          | 
-|     Drone                | - Get drone to hover stabolly   |          Not Started           |
+|     Drone | - Get drone to hover stabolly   |          Not Started           |
 |                          | - Perform basic movements       |                                |
-|     Vision & AI          | - Get Object detection working on Jetson locally | Not Started   |
+|     Vision & AI | - Get Object detection working on Jetson locally | Not Started   |
 |                          | - Implement depth estimation using stereo-camera setup   |       |
 |                          |                                 |                                |
 ---
