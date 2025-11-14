@@ -130,28 +130,18 @@ Power System:
 | ------------------------ | ------------------------------- | ------------------------------ |
 |                                     [MONTH - 1]                                             |
 | --------------------------------------------------------------------------------------------|
-|    Flutter App           | - connect with HM-10            |           success              |
-|                          | - convert audio commadands to   |                                |
-|                          |   exeecutable commands          |                                |
-|                ----------------------------------------------------                         |   
+|    Flutter App           | - connect with HM-10            |           SUCCESS              |
+|                          | - convert audio commadands to exeecutable commands   |           |
 |    Flask Server          | - run STT (whisper) locally     |           SUCCESS              |
-|                          | - use LM (api) to obtain text   |                                |
-|                          |   categorization and executable |                                |
+|                          | - use LM (api) to obtain text categorization and executable  |   |
 |                          |   command                       |                                |
-|                ----------------------------------------------------                         |   
-|     Robotic Arm          | - Control arm to given end point|          Not Started           |
-|                          |   using IK equations            |                                |
-|                          | - Identify stated object and    |                                | 
-|                          |   locate                        |                                |
-|                ----------------------------------------------------                         |
+|     Robotic Arm          | - Control arm to given end point using IK equations|  Not Started|
+|                          | - Identify stated object and locate   |                          | 
 |     Drone                | - Get drone to hover stabolly   |          Not Started           |
 |                          | - Perform basic movements       |                                |
-|               ----------------------------------------------------                          |
-|     Vision & AI          | - Get Object detection working  |          Not Started           |
-|                          |   on Jetson locally             |                                |
-|                          | - Implement depth estimation    |                                |
-|                          |   using stereo-camera setup     |                                |
-|======================================== TBD ================================================|
+|     Vision & AI          | - Get Object detection working on Jetson locally | Not Started   |
+|                          | - Implement depth estimation using stereo-camera setup   |       |
+|                          |                                 |                                |
 ---
 
 ## 🔒 Safety Architecture
