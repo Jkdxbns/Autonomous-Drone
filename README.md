@@ -6,7 +6,7 @@
 
 ## 🎯 Project Vision
 
-The **Drone Project** is a five-month R&D challenge to build a
+The **Drone Project** is a five-month Learning project and a R&D challenge to build a
 **voice-activated micro-delivery drone** capable of:
 
 * Responding to voice commands from a custom Android app
@@ -70,10 +70,10 @@ Power System:
 
 > Working prototype of the drone, arm, and Android app.
 
-* Bring-up Jetson↔STM32 UART link with interrupt and telemetry
+* Establish Jetson↔STM32 UART communication
 * Implement basic flight & arm movements (hover, rotate and land for drone | set-2-positions for arm)
-* Android app → server → Jetson → STM | communication chain over HTTP + WireGuard
-* Validate IMU / LiDAR / Optical Flow sensor readings
+* Android app → server → ~~Jetson → STM~~ Bluetooth | communication chain over HTTP + WireGuard
+* Validate IMU / ~~LiDAR / Optical Flow~~ sensor readings
 
 ---
 
@@ -126,10 +126,32 @@ Power System:
 ## 🧮 Current Targets & Metrics
 ### Will be updated as per progress
 
-| Category                 | Target                       | Status                         |
-| ------------------------ | ---------------------------- | ------------------------------ |
-|                          |                              |                                |
-
+|          Category        |             Target              |           Status               |
+| ------------------------ | ------------------------------- | ------------------------------ |
+|                                     [MONTH - 1]                                             |
+| --------------------------------------------------------------------------------------------|
+|    Flutter App           | - connect with HM-10            |           success              |
+|                          | - convert audio commadands to   |                                |
+|                          |   exeecutable commands          |                                |
+|                ----------------------------------------------------                         |   
+|    Flask Server          | - run STT (whisper) locally     |           SUCCESS              |
+|                          | - use LM (api) to obtain text   |                                |
+|                          |   categorization and executable |                                |
+|                          |   command                       |                                |
+|                ----------------------------------------------------                         |   
+|     Robotic Arm          | - Control arm to given end point|          Not Started           |
+|                          |   using IK equations            |                                |
+|                          | - Identify stated object and    |                                | 
+|                          |   locate                        |                                |
+|                ----------------------------------------------------                         |
+|     Drone                | - Get drone to hover stabolly   |          Not Started           |
+|                          | - Perform basic movements       |                                |
+|               ----------------------------------------------------                          |
+|     Vision & AI          | - Get Object detection working  |          Not Started           |
+|                          |   on Jetson locally             |                                |
+|                          | - Implement depth estimation    |                                |
+|                          |   using stereo-camera setup     |                                |
+|======================================== TBD ================================================|
 ---
 
 ## 🔒 Safety Architecture
