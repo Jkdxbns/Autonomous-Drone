@@ -128,8 +128,7 @@ Power System:
 
 |          Category        |             Target              |           Status               |
 | ------------------------ | ------------------------------- | ------------------------------ |
-|                                     [MONTH - 1]                                             |
-| --------------------------------------------------------------------------------------------|
+| ----------------------------------- [MONTH - 1] ------------------------------------------- |
 |    Flutter App           | - connect with HM-10            |           SUCCESS              |
 |                          | - convert audio commadands to exeecutable commands   |           |
 |    Flask Server          | - run STT (whisper) locally     |           SUCCESS              |
