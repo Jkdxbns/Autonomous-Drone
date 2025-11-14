@@ -1,0 +1,36 @@
+{
+  "categories": ["text-generation", "bt-control"],
+  
+  "pass1_output_format": {
+    "category": "<text-generation OR bt-control>",
+    "confidence": "<0.0 to 1.0>",
+    "reasoning": "<brief explanation>",
+    "user-data": "<actual user prompt>"
+  },
+  
+  "pass2_output_formats": {
+    "text-generation": {
+      "task": "text-generation",
+      "user-data": "<user prompt>",
+      "processing-device": "server",
+      "source-device": "<device_name (MAC: XX:XX:XX:XX:XX:XX)>",
+      "target-device": "<device_name (MAC: XX:XX:XX:XX:XX:XX)>",
+      "output": {
+        "generated_output": "<AI generated text>"
+      }
+    },
+    
+    "bt-control": {
+      "task": "bt-control",
+      "user-data": "<user prompt>",
+      "processing-device": "server",
+      "source-device": "<device_name (MAC: XX:XX:XX:XX:XX:XX)>",
+      "target-device": "<device_name (MAC: XX:XX:XX:XX:XX:XX)>",
+      "parent-device": "<parent_device_name (MAC: XX:XX:XX:XX:XX:XX)>",
+      "output-format":  null,
+      "output": {
+        "generated_output": "<command string>"
+      }
+    }
+  }
+}
