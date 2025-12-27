@@ -19,31 +19,23 @@ void setup()
     Serial.begin(BAUDRATE);
     HC05.begin(BAUDRATE);
 
-    // Attach ESC servo outputs to their pins with proper pulse range
-    ESC_FL.attach(PIN_ESC_FL, ESC_MIN_ALLOWED, ESC_MAX_ALLOWED);
-    ESC_FR.attach(PIN_ESC_FR, ESC_MIN_ALLOWED, ESC_MAX_ALLOWED);
-    ESC_RR.attach(PIN_ESC_RR, ESC_MIN_ALLOWED, ESC_MAX_ALLOWED);
-    ESC_RL.attach(PIN_ESC_RL, ESC_MIN_ALLOWED, ESC_MAX_ALLOWED);
+    // Attach ESC servo outputs to their pins
+    ESC_FL.attach(PIN_ESC_FL);
+    ESC_FR.attach(PIN_ESC_FR);
+    ESC_RR.attach(PIN_ESC_RR);
+    ESC_RL.attach(PIN_ESC_RL);
     delay(50);
 
-    // ESC Calibration: Send MAX (2000µs) then MIN (1000µs)
-    // This teaches ESCs their throttle range - bypass set_throttle_all() clamping
-    ESC_FL.writeMicroseconds(ESC_MAX_ALLOWED);
-    ESC_FR.writeMicroseconds(ESC_MAX_ALLOWED);
-    ESC_RR.writeMicroseconds(ESC_MAX_ALLOWED);
-    ESC_RL.writeMicroseconds(ESC_MAX_ALLOWED);
-    print_both_serial("BOOT: Sending MAX (2000us) for ESC calibration...");
-    delay(2000);  // Wait for ESC to recognize max and beep
-    
-    ESC_FL.writeMicroseconds(ESC_MIN_ALLOWED);
-    ESC_FR.writeMicroseconds(ESC_MIN_ALLOWED);
-    ESC_RR.writeMicroseconds(ESC_MIN_ALLOWED);
-    ESC_RL.writeMicroseconds(ESC_MIN_ALLOWED);
-    print_both_serial("BOOT: Sending MIN (1000us) for ESC calibration...");
-    delay(3000);  // Wait for calibration complete beeps
+    // Send a brief MAX signal to let ESCs enter programming/arming as needed,
+    // then fall back to MIN. Adjust timings to match your ESCs if necessary.
+    set_throttle_all(ESC_MAX_US);
+    print_both_serial("BOOT: MAX throttle sent for ESC programming.");
+    delay(2000);
+    set_throttle_all(ESC_MIN_US);
+    print_both_serial("BOOT: MIN throttle sent.");
+    delay(1000);
     print_both_serial("BOOT: POST Complete. Drone ready.");
 }
-
 
 void loop()
 {

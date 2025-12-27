@@ -6,7 +6,7 @@
 
 ## 🎯 Project Vision
 
-The **Drone Project** is a five-month R&D challenge to build a
+The **Drone Project** is a five-month Learning project and a R&D challenge to build a
 **voice-activated micro-delivery drone** capable of:
 
 * Responding to voice commands from a custom Android app
@@ -31,6 +31,7 @@ into one unified, real-world demonstration.
 | **3D-Printed Arm**               | 4× 15 kg·cm servos, 2 links, 3 DOF + 4-finger claw, payload ≈ 1 lb.                                                          |
 | **Networking**                   | LTE/Wi-Fi with WireGuard overlay for secure telemetry with RF as a redundant connectivity oiption                            |
 | **Sensors**                      | IMU (MPU6050/BMI088), Barometer (BMPxxx), Optical Flow (PMW3901/MTS-01P), TFmini/TFLune LiDAR (top & bottom), GPS            |
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 ---
 
@@ -63,20 +64,20 @@ Power System:
 
 ---
 
-## 🗓️ 5-Month Development Roadmap (Oct 25 → Mar 25)
+## 🗓️ 5-Month Development Roadmap
 
-### **Month 1 — Phase I : Proof of Concept (Oct 25 → Nov 25)**
+### **Month 1 — Phase I : Proof of Concept**
 
 > Working prototype of the drone, arm, and Android app.
 
-* Bring-up Jetson↔STM32 UART link with interrupt and telemetry
+* Establish Jetson↔STM32 UART communication
 * Implement basic flight & arm movements (hover, rotate and land for drone | set-2-positions for arm)
-* Android app → server → Jetson → STM | communication chain over HTTP + WireGuard
-* Validate IMU / LiDAR / Optical Flow sensor readings
+* Android app → server → ~~Jetson → STM~~ Bluetooth | communication chain over HTTP + WireGuard
+* Validate IMU / ~~LiDAR / Optical Flow~~ sensor readings
 
 ---
 
-### **Month 2 — Phase II : Secure Voice AI Integration (Nov 25 → Christmas)**
+### **Month 2 — Phase II : Secure Voice AI Integration**
 
 > Add voice control, AI perception, and ROS 2 integration.
 
@@ -88,7 +89,7 @@ Power System:
 
 ---
 
-### **Month 3 — Phase III : Object Pick & Outdoor Navigation (Jan → Feb 1)**
+### **Month 3 — Phase III : Object Pick & Outdoor Navigation**
 
 > Extend autonomy and begin real pick-and-place trials.
 
@@ -100,7 +101,7 @@ Power System:
 
 ---
 
-### **Month 4 — Phase IV : Full Autonomy & Dataset Build (Feb → Mar 1)**
+### **Month 4 — Phase IV : Full Autonomy & Dataset Build**
 
 > Achieve reliable end-to-end autonomy.
 
@@ -111,7 +112,7 @@ Power System:
 
 ---
 
-### **Month 5 — Phase V : “Coffin” → Final Build and Launch (Mar → Mar 30)**
+### **Month 5 — Phase V : “Coffin” → Final Build and Launch**
 
 > Replace all models with custom, locally-trained networks.
 
@@ -125,10 +126,20 @@ Power System:
 ## 🧮 Current Targets & Metrics
 ### Will be updated as per progress
 
-| Category                 | Target                       | Status                         |
-| ------------------------ | ---------------------------- | ------------------------------ |
-|                          |                              |                                |
-
+|          Category        |             Target              |           Status               |
+| ------------------------ | ------------------------------- | ------------------------------ |
+|    Flutter App | - connect with HM-10            |           SUCCESS              |
+|                          | - convert audio commadands to exeecutable commands   |           |
+|    Flask Server | - run STT (whisper) locally     |           SUCCESS              |
+|                          | - use LM (api) to obtain text categorization and executable  |   |
+|                          |   command                       |                                |
+|     Robotic Arm | - Control arm to given end point using IK equations|  Not Started|
+|                          | - Identify stated object and locate   |                          | 
+|     Drone | - Get drone to hover stabolly   |          Not Started           |
+|                          | - Perform basic movements       |                                |
+|     Vision & AI | - Get Object detection working on Jetson locally | Not Started   |
+|                          | - Implement depth estimation using stereo-camera setup   |       |
+|                          |                                 |                                |
 ---
 
 ## 🔒 Safety Architecture

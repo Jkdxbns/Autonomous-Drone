@@ -5,7 +5,7 @@
 
 // Runtime-adjustable ESC pulse limits and state
 int ESC_MIN_US = ESC_MIN_ALLOWED;
-int ESC_MAX_US = ESC_MIN_US + ((ESC_MAX_ALLOWED - ESC_MIN_ALLOWED) * 0.2); // Full range after calibration
+int ESC_MAX_US = ESC_MAX_ALLOWED * 0.2; // Start with 20% max for safety
 int ESC_current_pct = 0; // 0..100
 
 // Peripherals
