@@ -1,7 +1,48 @@
 {
   "STT": {
-
+    "tiny.en": "Systran/faster-whisper-tiny.en",
+    "tiny": "Systran/faster-whisper-tiny",
+    "base.en": "Systran/faster-whisper-base.en",
+    "base": "Systran/faster-whisper-base",
+    "small.en": "Systran/faster-whisper-small.en",
+    "small": "Systran/faster-whisper-small",
+    "medium.en": "Systran/faster-whisper-medium.en",
+    "medium": "Systran/faster-whisper-medium",
+    "large-v1": "Systran/faster-whisper-large-v1",
+    "large-v2": "Systran/faster-whisper-large-v2",
+    "large-v3": "Systran/faster-whisper-large-v3",
+    "large": "Systran/faster-whisper-large-v3",
+    "distil-large-v2": "Systran/faster-distil-whisper-large-v2",
+    "distil-medium.en": "Systran/faster-distil-whisper-medium.en",
+    "distil-small.en": "Systran/faster-distil-whisper-small.en",
+    "distil-large-v3": "Systran/faster-distil-whisper-large-v3"
   },
   "LM": {
-    }
+    "gemini-2.5-flash": "models/gemini-2.5-flash",
+    "gemini-2.5-pro": "models/gemini-2.5-pro",
+    "gemini-2.0-flash-exp": "models/gemini-2.0-flash-exp",
+    "gemini-2.0-flash": "models/gemini-2.0-flash",
+    "gemini-2.0-flash-001": "models/gemini-2.0-flash-001",
+    "gemini-2.0-flash-exp-image-generation": "models/gemini-2.0-flash-exp-image-generation",
+    "gemini-2.0-flash-lite-001": "models/gemini-2.0-flash-lite-001",
+    "gemini-2.0-flash-lite": "models/gemini-2.0-flash-lite",
+    "gemini-2.0-flash-lite-preview-02-05": "models/gemini-2.0-flash-lite-preview-02-05",
+    "gemini-2.0-flash-lite-preview": "models/gemini-2.0-flash-lite-preview",
+    "gemini-exp-1206": "models/gemini-exp-1206",
+    "gemini-2.5-flash-preview-tts": "models/gemini-2.5-flash-preview-tts",
+    "gemini-2.5-pro-preview-tts": "models/gemini-2.5-pro-preview-tts",
+    "gemini-flash-latest": "models/gemini-flash-latest",
+    "gemini-flash-lite-latest": "models/gemini-flash-lite-latest",
+    "gemini-pro-latest": "models/gemini-pro-latest",
+    "gemini-2.5-flash-lite": "models/gemini-2.5-flash-lite",
+    "gemini-2.5-flash-image-preview": "models/gemini-2.5-flash-image-preview",
+    "gemini-2.5-flash-image": "models/gemini-2.5-flash-image",
+    "gemini-2.5-flash-preview-09-2025": "models/gemini-2.5-flash-preview-09-2025",
+    "gemini-2.5-flash-lite-preview-09-2025": "models/gemini-2.5-flash-lite-preview-09-2025",
+    "gemini-3-pro-preview": "models/gemini-3-pro-preview",
+    "gemini-3-flash-preview": "models/gemini-3-flash-preview",
+    "gemini-3-pro-image-preview": "models/gemini-3-pro-image-preview",
+    "gemini-robotics-er-1.5-preview": "models/gemini-robotics-er-1.5-preview",
+    "gemini-2.5-computer-use-preview-10-2025": "models/gemini-2.5-computer-use-preview-10-2025"
+  }
 }

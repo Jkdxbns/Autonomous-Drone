@@ -104,6 +104,6 @@ if __name__ == "__main__":
     # Start server
     print("\n" + "="*50)
     print("FlaskServer_v6 is running!")
-    print("Endpoints: /health, /catalog, /device/*, /generate, /process")
+    print("Endpoints: /health, /catalog, /device/*, /lm/generate, /lm/query, /stt/transcribe, /ai/process")
     print("="*50 + "\n")
     app.run(host="0.0.0.0", port=5000, debug=True)

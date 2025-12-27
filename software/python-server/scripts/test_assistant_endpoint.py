@@ -19,7 +19,7 @@ def test_text_generation():
     print("="*60)
     
     response = requests.post(
-        f"{BASE_URL}/api/v1/assistant/handle",
+        f"{BASE_URL}/lm/query",
         json={
             "user_query": "Hi there, how are you?",
             "source_device_mac": "5D:17:47:13:E7:49"
@@ -61,7 +61,7 @@ def test_bt_control():
     print("="*60)
     
     response = requests.post(
-        f"{BASE_URL}/api/v1/assistant/handle",
+        f"{BASE_URL}/lm/query",
         json={
             "user_query": "turn on bluetooth lights",
             "source_device_mac": "5D:17:47:13:E7:49"
@@ -103,7 +103,7 @@ def test_bt_control_generic_format():
     print("="*60)
     
     response = requests.post(
-        f"{BASE_URL}/api/v1/assistant/handle",
+        f"{BASE_URL}/lm/query",
         json={
             "user_query": "blink bluetooth LED for 5 seconds",
             "source_device_mac": "5D:17:47:13:E7:49"
@@ -140,7 +140,7 @@ def test_device_not_found():
     print("="*60)
     
     response = requests.post(
-        f"{BASE_URL}/api/v1/assistant/handle",
+        f"{BASE_URL}/lm/query",
         json={
             "user_query": "turn on robot lights",
             "source_device_mac": "5D:17:47:13:E7:49"

@@ -15,7 +15,7 @@ stt_service = STTService()
 catalog_service = CatalogService()
 
 
-@bp.post("/generate")
+@bp.post("/lm/generate")
 def generate():
     """Generate text using LM only (no STT).
     
@@ -85,7 +85,7 @@ def echo():
     }), 200
 
 
-@bp.post("/transcribe")
+@bp.post("/stt/transcribe")
 def transcribe():
     """Transcribe audio only (no LM generation).
     
@@ -153,7 +153,7 @@ def transcribe():
         return jsonify({"error": str(e)}), 500
 
 
-@bp.post("/process")
+@bp.post("/ai/process")
 def process():
     """Unified endpoint: Transcribe audio (if provided) + Generate text with LM.
     

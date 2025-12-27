@@ -103,12 +103,12 @@ def test_echo():
 
 
 def test_process_text(live=False):
-    """Test POST /process with text input (JSON).
+    """Test POST /ai/process with text input (JSON).
     
     Args:
         live: If True, requires actual Gemini API key. If False, expects error.
     """
-    print_test("POST /process (text input)")
+    print_test("POST /ai/process (text input)")
     try:
         payload = {
             "input_type": "text",
@@ -117,7 +117,7 @@ def test_process_text(live=False):
         }
         
         response = requests.post(
-            f"{BASE_URL}/process",
+            f"{BASE_URL}/ai/process",
             json=payload,
             stream=True,
             timeout=TIMEOUT
@@ -190,12 +190,12 @@ def test_process_text(live=False):
 
 
 def test_process_audio(live=False):
-    """Test POST /process with audio input (multipart).
+    """Test POST /ai/process with audio input (multipart).
     
     Args:
         live: If True, attempts real transcription. If False, expects model download or error.
     """
-    print_test("POST /process (audio input)")
+    print_test("POST /ai/process (audio input)")
     try:
         # Use sample WAV if present, else generate test .wav file
         sample_path = Path(__file__).resolve().parent / 'sample.wav'
@@ -217,7 +217,7 @@ def test_process_audio(live=False):
         
         print("Uploading audio file...")
         response = requests.post(
-            f"{BASE_URL}/process",
+            f"{BASE_URL}/ai/process",
             files=files,
             data=data,
             stream=True,
@@ -307,7 +307,7 @@ def test_process_audio(live=False):
 
 def test_invalid_model():
     """Test that invalid model names are rejected."""
-    print_test("POST /process (invalid STT model)")
+    print_test("POST /ai/process (invalid STT model)")
     try:
         audio_buffer = generate_test_wav(duration_seconds=1)
         
@@ -320,7 +320,7 @@ def test_invalid_model():
         }
         
         response = requests.post(
-            f"{BASE_URL}/process",
+            f"{BASE_URL}/ai/process",
             files=files,
             data=data,
             stream=True,

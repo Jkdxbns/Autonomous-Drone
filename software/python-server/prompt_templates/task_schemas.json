@@ -27,7 +27,21 @@
       "source-device": "<device_name (MAC: XX:XX:XX:XX:XX:XX)>",
       "target-device": "<device_name (MAC: XX:XX:XX:XX:XX:XX)>",
       "parent-device": "<parent_device_name (MAC: XX:XX:XX:XX:XX:XX)>",
-      "output-format":  null,
+      "output-format": [
+        "move:forward:<cm>",
+        "move:backward:<cm>",
+        "move:up:<cm>",
+        "move:down:<cm>",
+        "position:<y>,<z>",
+        "base:<angle>",
+        "wrist:<angle>",
+        "gripper:open",
+        "gripper:close",
+        "gripper:tight",
+        "gripper:<angle>",
+        "home",
+        "status"
+      ],
       "output": {
         "generated_output": "<command string>"
       }

@@ -20,7 +20,7 @@ def get_assistant_service():
     return assistant_service
 
 
-@bp.route('/api/v1/assistant/handle', methods=['POST'])
+@bp.route('/lm/query', methods=['POST'])
 def handle_assistant_request():
     """Main assistant endpoint - two-pass pipeline.
     
@@ -42,7 +42,7 @@ def handle_assistant_request():
         lm_model = data.get('lm_model')
         
         print("\n" + "="*80)
-        print("[ASSISTANT] POST /api/v1/assistant/handle called")
+        print("[ASSISTANT] POST /lm/query called")
         print("="*80)
         print(f"[DEBUG] Request data:")
         print(f"  user_query: {user_query}")
