@@ -11,7 +11,7 @@ The **Drone Project** is a five-month Learning project and a R&D challenge to bu
 
 * Responding to voice commands from a custom Android app
 * Navigating both **indoors and outdoors** using SLAM, GPS, and sensor fusion
-* Picking and delivering small objects with a **3D-printed robotic arm**
+* Picking and delivering small objects with a ~~3D-printed robotic arm~~ 3-DOF Robotic Arm
 * Executing automatic safety behaviors like emergency landing, watchdog recovery, link-loss actions and return-to-home
 
 This project aims to merge **embedded systems, edge AI, perception and human-robot interaction**
@@ -24,11 +24,11 @@ into one unified, real-world demonstration.
 | Layer                            | Description                                                                                                                  |
 | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
 | **Android App**                  | Interface for commands and speech-to-text. Sends missions to server over HTTPS via WireGuard VPN.                            |
-| **Server (BeagleBone / Laptop)** | Acts as a relay hub handling authentication and command routing to Jetson.                                                   |
-| **Jetson Orin Nano**             | Runs ROS 2 Humble, SLAM, object detection and mission control. Converts incoming JSON commands to real-time tasks.           |
+| **Server (BeagleBone / Laptop)** | Acts as a relay hub handling authentication and command routing to Jetson and other user devices.                            |
+| **Jetson Orin Nano**             | Runs ROS 2 Humble, SLAM, object detection and mission control. Converts incoming commands to real-time tasks.                |
 | **STM32 Nucleo (FreeRTOS)**      | Handles all low-level control: motor PWM, IMU fusion, watchdog timer, and emergency-landing state machine.                   |
 | **Custom Safety WDC**            | Windowed watchdog + PWM multiplexer                                                                                          |
-| **3D-Printed Arm**               | 4× 15 kg·cm servos, 2 links, 3 DOF + 4-finger claw, payload ≈ 1 lb.                                                          |
+| ~~3D-Printed Arm~~ 3-DOF Arm     | ~~4× 15 kg·cm servos, 2 links, 3 DOF + 4-finger claw, payload ≈ 1 lb.~~ 5xMG90s servo motor, 2-fingered claw, payload≈0.1 lb |
 | **Networking**                   | LTE/Wi-Fi with WireGuard overlay for secure telemetry with RF as a redundant connectivity oiption                            |
 | **Sensors**                      | IMU (MPU6050/BMI088), Barometer (BMPxxx), Optical Flow (PMW3901/MTS-01P), TFmini/TFLune LiDAR (top & bottom), GPS            |
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -66,27 +66,33 @@ Power System:
 
 ## 🗓️ 5-Month Development Roadmap
 
+### TIMELINE
+**Phase I**: October 26 to December 26 --> Drone incomplete.
+**Phase II**: December 27 to _Ongoing_ --> _TBA_.
+
 ### **Month 1 — Phase I : Proof of Concept**
 
-> Working prototype of the drone, arm, and Android app.
+> Working prototype of the arm, and Android app.
 
-* Establish Jetson↔STM32 UART communication
-* Implement basic flight & arm movements (hover, rotate and land for drone | set-2-positions for arm)
-* Android app → server → ~~Jetson → STM~~ Bluetooth | communication chain over HTTP + WireGuard
+* Establish ~~Jetson↔STM32 UART communication~~ Application to Bluetooth Module communication
+* Implement ~~basic flight~~ & arm movements (~~hover, rotate and land for drone~~ | set positions for arm) arm is not controlled using IK equations
+* Android app → server → ~~Jetson → STM~~ Bluetooth | communication chain over HTTP + ~~WireGuard~~
 * Validate IMU / ~~LiDAR / Optical Flow~~ sensor readings
-
+ISSUES:
+1. Jetson to STM32 was never tested as the app never sent data to jetson from server so even if the communication worked the system would not have.
+2. Drone control failed as 1 of the ESC burned down and caused the delay in testing
+3. Arm movement are almost perfect, need a little tuning, arduino code provided under and working video proof
 ---
 
 ### **Month 2 — Phase II : Secure Voice AI Integration**
 
 > Add voice control, AI perception, and ROS 2 integration.
 
-* On-device wake-word + 2FA confirmation
 * Multi-device server connections (phone / laptop / Jetson)
 * VIO SLAM + object detection pipelines
 * STM32 + Arduino UNO watchdog co-testing
 * ROS 2 Humble stack setup for telemetry and visualization
-
+ISSUES:
 ---
 
 ### **Month 3 — Phase III : Object Pick & Outdoor Navigation**

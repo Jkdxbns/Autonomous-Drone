@@ -1,6 +1,6 @@
 # 5-DOF Robotic Arm with Inverse Kinematics
 
-A programmable 5 degree-of-freedom robotic arm featuring inverse kinematics control, dual command interfaces (Serial & Bluetooth), and smooth servo interpolation for precise positioning.
+A programmable 3 degree-of-freedom robotic arm featuring inverse kinematics control, dual command interfaces (Serial & Bluetooth), and smooth servo interpolation for precise positioning.
 
 > 📺 **Demo Video**: *Coming soon on [YouTube](#) and [Instagram](#)*
 
@@ -8,7 +8,7 @@ A programmable 5 degree-of-freedom robotic arm featuring inverse kinematics cont
 
 ## 🤖 Overview
 
-This project implements advanced control for a 5-DOF robotic arm using Arduino Nano, featuring:
+This project implements advanced control for a 3-DOF robotic arm using Arduino Nano, featuring:
 - **Inverse Kinematics** - Calculate joint angles from desired end-effector positions
 - **Dual Control Interfaces** - Serial terminal commands and Bluetooth wireless control
 - **Smooth Motion** - Interpolated servo movements for fluid motion
@@ -19,14 +19,14 @@ This project implements advanced control for a 5-DOF robotic arm using Arduino N
 
 **Arm Configuration:**
 - 5 Degrees of Freedom (Base, Shoulder, Elbow, Wrist, Gripper)
-- Total reach: ~25cm horizontal range
-- Vertical workspace: 5-30cm height
+- Total reach: ~10-25cm horizontal range
+- Vertical workspace: ~ 5-30cm height
 - Servo-powered joints with calibrated offsets
 
 **Dimensions:**
-- Base Height (L0): 7.2cm
-- Upper Arm (L1): 7.5cm  
-- Forearm (L2): 17.5cm
+- Base Height (L0): 7.2 cm
+- Upper Arm (L1): 7.5 cm  
+- Forearm (L2): 17.5 cm
 
 ---
 
@@ -43,8 +43,8 @@ This project implements advanced control for a 5-DOF robotic arm using Arduino N
 
 - Arduino Nano (or compatible)
 - 5x Servo Motors (included with kit)
-- HC-05/HC-06 Bluetooth Module (optional, for wireless control)
-- Power Supply (5-6V, 2-3A recommended)
+- HC-05/HC-06 Bluetooth Module for wireless control
+- Power Supply (5V, 2A recommended)
 - USB Cable for programming
 
 ### Pin Configuration
@@ -92,10 +92,8 @@ pio device monitor
 ### 2. Hardware Assembly
 
 1. **Assemble the arm** following the manufacturer's instructions
-2. **Connect servos** to Arduino Nano according to pin configuration
-3. **Power supply**: Connect external 5-6V power to servo power rails
-4. **Bluetooth (optional)**: Connect HC-05 module to pins 10 (RX) and 11 (TX)
-5. **Upload firmware** using USB cable
+2. **Power supply**: Connect external 5V power to servo power rails
+3. **Bluetooth**: Connect HC-05 module to pins 10 (RX) and 11 (TX)
 
 ### 3. Calibration
 
@@ -322,30 +320,6 @@ The project demonstrates practical applications of:
 
 ---
 
-## 🔧 Troubleshooting
-
-### Arm doesn't move to correct position
-- **Check servo offsets** in `main.cpp` - Each servo may have different zero points
-- **Verify power supply** - Servos need adequate current (2-3A)
-- **Recalibrate home position** - Send `H` command and observe
-
-### Servos jittering or not responding
-- **Insufficient power** - Use external 5-6V supply, not USB power
-- **Check connections** - Ensure servo signal wires are properly connected
-- **Reduce move speed** - Increase `moveDelay` variable
-
-### Position calculations seem wrong
-- **Verify dimensions** - Measure actual arm segment lengths (L0, L1, L2)
-- **Check coordinate system** - Y is horizontal (forward/back), Z is vertical (up/down)
-- **Workspace limits** - Target must be within reachable zone
-
-### Bluetooth not connecting
-- **Baud rate** - Ensure HC-05 module is set to 9600 baud
-- **Wiring** - Arduino TX → BT RX, Arduino RX → BT TX
-- **Pairing** - Pair Bluetooth module first (default PIN: 1234 or 0000)
-
----
-
 ## 🚀 Future Enhancements
 
 Potential improvements:
@@ -354,19 +328,6 @@ Potential improvements:
 - [ ] Obstacle avoidance
 - [ ] Vision system integration
 - [ ] Machine learning for pick-and-place optimization
-- [ ] Mobile app for wireless control
-
----
-
-## 📜 License
-
-This project is open source. Feel free to use, modify, and distribute.
-
----
-
-## 🤝 Contributing
-
-Contributions, issues, and feature requests are welcome!
 
 ---
 
