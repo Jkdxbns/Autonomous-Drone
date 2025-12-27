@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import '../../../constants/app_dimensions.dart';
 import '../../../models/unified_bluetooth_device.dart';
 import '../../../services/bluetooth/unified_bluetooth_service.dart';
 import '../../../services/bluetooth/bluetooth_device_manager.dart';
@@ -337,6 +338,7 @@ class _UnifiedScannerScreenState extends State<UnifiedScannerScreen> with Single
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        toolbarHeight: context.dimensions.appBarHeight,
         backgroundColor: Colors.blue,
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(10),
@@ -489,7 +491,7 @@ class _UnifiedScannerScreenState extends State<UnifiedScannerScreen> with Single
                   ),
                 )
               : ListView.builder(
-                  primary: true, // Don't use PrimaryScrollController
+                  primary: false, // Don't use PrimaryScrollController
                   itemCount: _savedDevices.length,
                   itemBuilder: (context, index) {
                     final device = _savedDevices[index];

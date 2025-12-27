@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'dart:async';
+import '../../../constants/app_dimensions.dart';
 import '../../../models/ble_device_config.dart';
 import '../../../services/ble/ble_service.dart';
 import '../../../services/ble/ble_device_manager.dart';
@@ -176,6 +177,7 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        toolbarHeight: context.dimensions.appBarHeight,
         title: const Text('BLE Scanner (HM-10)'),
         backgroundColor: Colors.blue,
       ),

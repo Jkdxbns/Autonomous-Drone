@@ -20,7 +20,7 @@ class AssistantApiService {
     String? lmModel,
   }) async {
     try {
-      final url = Uri.parse('$baseUrl/api/v1/assistant/handle');
+      final url = Uri.parse('$baseUrl/lm/query');
       
       AppLogger.info('Assistant request: ${userQuery.substring(0, userQuery.length.clamp(0, 50))}...');
 

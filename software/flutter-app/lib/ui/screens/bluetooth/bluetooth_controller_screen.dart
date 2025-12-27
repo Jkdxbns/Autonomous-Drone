@@ -36,8 +36,9 @@ class _DynamicWidget {
 
   double rotation;
   String label; // Value/label to display on widget (for slider/button)
-  Map<String, String>? joystickLabels; // Labels for joystick: up, down, left, right
-  
+  Map<String, String>?
+  joystickLabels; // Labels for joystick: up, down, left, right
+
   // Slider configuration
   double sliderMin;
   double sliderMax;
@@ -92,11 +93,11 @@ class BluetoothControllerScreen extends StatefulWidget {
   const BluetoothControllerScreen({super.key});
 
   @override
-  State<BluetoothControllerScreen> createState() =>
-      _BluetoothControllerScreenState();
+  BluetoothControllerScreenState createState() =>
+      BluetoothControllerScreenState();
 }
 
-class _BluetoothControllerScreenState extends State<BluetoothControllerScreen> {
+class BluetoothControllerScreenState extends State<BluetoothControllerScreen> {
   final _unifiedService = UnifiedBluetoothService.instance;
 
   List<UnifiedBluetoothDevice> _savedDevices = [];
@@ -113,6 +114,12 @@ class _BluetoothControllerScreenState extends State<BluetoothControllerScreen> {
   int _nextWidgetId = 1;
   final List<_DynamicWidget> _dynamicWidgets = [];
   _DynamicWidget? _selectedWidget;
+
+  // Multi-layout support
+  String? _currentLayoutName;
+  List<String> _savedLayoutNames = [];
+  bool _hasUnsavedChanges = false;
+  String? _lastSavedState; // JSON snapshot to detect changes
 
   // Canvas size captured via LayoutBuilder
   Size? _canvasSize;
@@ -133,7 +140,7 @@ class _BluetoothControllerScreenState extends State<BluetoothControllerScreen> {
     super.initState();
     _initializeService();
     _loadSavedDevices();
-    _loadSavedWidgets();
+    _loadLayoutNames().then((_) => _loadLastLayout());
     _listenToConnectionStates();
     _listenToIncomingData();
   }
@@ -173,31 +180,61 @@ class _BluetoothControllerScreenState extends State<BluetoothControllerScreen> {
     }
   }
 
-  Future<void> _saveWidgets() async {
+  Future<void> saveWidgets() async {
+    if (_currentLayoutName == null) {
+      // No layout selected, prompt to save as new
+      showSaveAsDialog();
+      return;
+    }
+    await _saveLayoutToStorage(_currentLayoutName!);
+  }
+
+  /// Save current layout to storage with given name
+  Future<void> _saveLayoutToStorage(String layoutName) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final widgetsJson = _dynamicWidgets.map((w) => w.toJson()).toList();
       final jsonString = jsonEncode(widgetsJson);
-      await prefs.setString('controller_widgets', jsonString);
-      
-      // Update next widget ID to avoid conflicts
+
+      // Save layout data
+      await prefs.setString('controller_layout_$layoutName', jsonString);
+
+      // Update next widget ID for this layout
       if (_dynamicWidgets.isNotEmpty) {
-        final maxId = _dynamicWidgets.map((w) => w.id).reduce((a, b) => a > b ? a : b);
+        final maxId = _dynamicWidgets
+            .map((w) => w.id)
+            .reduce((a, b) => a > b ? a : b);
         _nextWidgetId = maxId + 1;
-        await prefs.setInt('controller_next_widget_id', _nextWidgetId);
+        await prefs.setInt('controller_next_id_$layoutName', _nextWidgetId);
       }
-      
-      AppLogger.success('Widgets saved successfully');
+
+      // Add to layout names if new
+      if (!_savedLayoutNames.contains(layoutName)) {
+        _savedLayoutNames.add(layoutName);
+        await prefs.setStringList('controller_layout_names', _savedLayoutNames);
+      }
+
+      // Update current layout
+      _currentLayoutName = layoutName;
+      await prefs.setString('controller_current_layout', layoutName);
+
+      // Update saved state snapshot
+      _lastSavedState = jsonString;
+      setState(() {
+        _hasUnsavedChanges = false;
+      });
+
+      AppLogger.success('Layout "$layoutName" saved successfully');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Layout saved successfully'),
-            duration: Duration(seconds: 2),
+          SnackBar(
+            content: Text('Layout "$layoutName" saved'),
+            duration: const Duration(seconds: 2),
           ),
         );
       }
     } catch (e) {
-      AppLogger.error('Failed to save widgets: $e');
+      AppLogger.error('Failed to save layout: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -210,34 +247,409 @@ class _BluetoothControllerScreenState extends State<BluetoothControllerScreen> {
     }
   }
 
-  Future<void> _loadSavedWidgets() async {
+  /// Load list of saved layout names
+  Future<void> _loadLayoutNames() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final jsonString = prefs.getString('controller_widgets');
-      
+      final names = prefs.getStringList('controller_layout_names') ?? [];
+      setState(() {
+        _savedLayoutNames = names;
+      });
+    } catch (e) {
+      AppLogger.error('Failed to load layout names: $e');
+    }
+  }
+
+  /// Load the last used layout on app start
+  Future<void> _loadLastLayout() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final lastLayoutName = prefs.getString('controller_current_layout');
+
+      if (lastLayoutName != null &&
+          _savedLayoutNames.contains(lastLayoutName)) {
+        await _loadLayout(lastLayoutName, showMessage: false);
+      }
+    } catch (e) {
+      AppLogger.error('Failed to load last layout: $e');
+    }
+  }
+
+  /// Load a specific layout by name
+  Future<void> _loadLayout(String layoutName, {bool showMessage = true}) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jsonString = prefs.getString('controller_layout_$layoutName');
+
       if (jsonString != null && jsonString.isNotEmpty) {
-        final List<dynamic> widgetsJson = jsonDecode(jsonString) as List<dynamic>;
+        final List<dynamic> widgetsJson =
+            jsonDecode(jsonString) as List<dynamic>;
         final widgets = widgetsJson
-            .map((json) => _DynamicWidget.fromJson(json as Map<String, dynamic>))
+            .map(
+              (json) => _DynamicWidget.fromJson(json as Map<String, dynamic>),
+            )
             .toList();
-        
-        // Restore next widget ID
-        final savedNextId = prefs.getInt('controller_next_widget_id');
+
+        // Restore next widget ID for this layout
+        final savedNextId = prefs.getInt('controller_next_id_$layoutName');
         if (savedNextId != null) {
           _nextWidgetId = savedNextId;
         }
-        
+
+        // Update current layout
+        _currentLayoutName = layoutName;
+        await prefs.setString('controller_current_layout', layoutName);
+
+        // Update saved state snapshot
+        _lastSavedState = jsonString;
+
         if (mounted) {
           setState(() {
             _dynamicWidgets.clear();
             _dynamicWidgets.addAll(widgets);
+            _hasUnsavedChanges = false;
+            _selectedWidget = null;
           });
-          AppLogger.info('Loaded ${widgets.length} saved widgets');
+          if (showMessage) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Layout "$layoutName" loaded'),
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          }
+          AppLogger.info(
+            'Loaded layout "$layoutName" with ${widgets.length} widgets',
+          );
+        }
+      } else {
+        // Layout exists in names but has no data
+        _currentLayoutName = layoutName;
+        await prefs.setString('controller_current_layout', layoutName);
+        _lastSavedState = '[]';
+
+        if (mounted) {
+          setState(() {
+            _dynamicWidgets.clear();
+            _hasUnsavedChanges = false;
+            _selectedWidget = null;
+          });
         }
       }
     } catch (e) {
-      AppLogger.error('Failed to load widgets: $e');
+      AppLogger.error('Failed to load layout: $e');
+      if (mounted && showMessage) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load layout: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
+  }
+
+  /// Delete a layout
+  Future<void> _deleteLayout(String layoutName) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      // Remove from storage
+      await prefs.remove('controller_layout_$layoutName');
+      await prefs.remove('controller_next_id_$layoutName');
+
+      // Remove from names list
+      _savedLayoutNames.remove(layoutName);
+      await prefs.setStringList('controller_layout_names', _savedLayoutNames);
+
+      // If current layout was deleted, clear canvas
+      if (_currentLayoutName == layoutName) {
+        _currentLayoutName = null;
+        await prefs.remove('controller_current_layout');
+        setState(() {
+          _dynamicWidgets.clear();
+          _hasUnsavedChanges = false;
+          _selectedWidget = null;
+        });
+      } else {
+        setState(() {});
+      }
+
+      AppLogger.info('Layout "$layoutName" deleted');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Layout "$layoutName" deleted'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      AppLogger.error('Failed to delete layout: $e');
+    }
+  }
+
+  /// Mark layout as having unsaved changes
+  void _markUnsavedChanges() {
+    final currentState = jsonEncode(
+      _dynamicWidgets.map((w) => w.toJson()).toList(),
+    );
+    if (currentState != _lastSavedState) {
+      setState(() {
+        _hasUnsavedChanges = true;
+      });
+    }
+  }
+
+  /// Show load layout dialog
+  void showLoadDialog() {
+    if (_savedLayoutNames.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No saved layouts'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    // Check for unsaved changes first
+    if (_hasUnsavedChanges) {
+      _showUnsavedChangesDialog(() => _showLoadLayoutPicker());
+    } else {
+      _showLoadLayoutPicker();
+    }
+  }
+
+  void _showLoadLayoutPicker() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Load Layout'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: _savedLayoutNames.length,
+            itemBuilder: (context, index) {
+              final name = _savedLayoutNames[index];
+              final isCurrentLayout = name == _currentLayoutName;
+              return ListTile(
+                title: Text(name),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (isCurrentLayout)
+                      const Icon(Icons.check, color: Colors.green),
+                    IconButton(
+                      icon: const Icon(
+                        Icons.delete,
+                        color: Colors.red,
+                        size: 20,
+                      ),
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _confirmDeleteLayout(name);
+                      },
+                    ),
+                  ],
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _loadLayout(name);
+                },
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDeleteLayout(String layoutName) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Layout?'),
+        content: Text('Are you sure you want to delete "$layoutName"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _deleteLayout(layoutName);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Show save as dialog
+  void showSaveAsDialog() {
+    final textController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Save Layout As'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // New layout name input
+              TextField(
+                controller: textController,
+                decoration: const InputDecoration(
+                  labelText: 'New Layout Name',
+                  hintText: 'Enter a name for this layout',
+                  border: OutlineInputBorder(),
+                ),
+                autofocus: true,
+              ),
+              const SizedBox(height: 16),
+              if (_savedLayoutNames.isNotEmpty) ...[
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Or overwrite existing:',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  height: 150,
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: _savedLayoutNames.length,
+                    itemBuilder: (context, index) {
+                      final name = _savedLayoutNames[index];
+                      return ListTile(
+                        dense: true,
+                        title: Text(name),
+                        trailing: const Icon(Icons.save, size: 18),
+                        onTap: () {
+                          Navigator.pop(context);
+                          _confirmOverwriteLayout(name);
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final name = textController.text.trim();
+              if (name.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Please enter a layout name')),
+                );
+                return;
+              }
+              if (_savedLayoutNames.contains(name)) {
+                Navigator.pop(context);
+                _confirmOverwriteLayout(name);
+              } else {
+                Navigator.pop(context);
+                _saveLayoutToStorage(name);
+              }
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmOverwriteLayout(String layoutName) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Overwrite Layout?'),
+        content: Text('Layout "$layoutName" already exists. Overwrite it?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _saveLayoutToStorage(layoutName);
+            },
+            child: const Text('Overwrite'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showUnsavedChangesDialog(VoidCallback onDiscard) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Unsaved Changes'),
+        content: Text(
+          _currentLayoutName != null
+              ? 'You have unsaved changes to "$_currentLayoutName". Save before continuing?'
+              : 'You have unsaved changes. Save before continuing?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              // Discard and continue
+              setState(() {
+                _hasUnsavedChanges = false;
+              });
+              onDiscard();
+            },
+            child: const Text('Discard'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              if (_currentLayoutName != null) {
+                await _saveLayoutToStorage(_currentLayoutName!);
+              } else {
+                showSaveAsDialog();
+                return; // Don't continue with onDiscard
+              }
+              onDiscard();
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _loadSavedWidgets() async {
+    // Legacy method - now handled by _loadLastLayout
   }
 
   void _listenToConnectionStates() {
@@ -268,7 +680,9 @@ class _BluetoothControllerScreenState extends State<BluetoothControllerScreen> {
 
   void _listenToIncomingData() {
     _dataSubscription = _unifiedService.dataReceivedStream.listen((event) {
-      if (mounted && _selectedDevice != null && event.deviceId == _selectedDevice!.id) {
+      if (mounted &&
+          _selectedDevice != null &&
+          event.deviceId == _selectedDevice!.id) {
         setState(() {
           final message = '${_selectedDevice!.displayName}: ${event.data}';
           _receivedData.add(message);
@@ -303,10 +717,54 @@ class _BluetoothControllerScreenState extends State<BluetoothControllerScreen> {
         // Device selector dropdown
         _buildDeviceSelector(connectedDevices),
 
-        // Edit UI link and Delete button
-        const SizedBox(height: 6),
+        // Layout indicator and controls row
+        const SizedBox(height: 5),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20.0),
+          padding: const EdgeInsets.only(left: 20.0, right: 20.0, bottom: 2.0),
+          child: Row(
+            children: [
+              // Layout name indicator
+              Text(
+                'Layout: ${_currentLayoutName ?? "Unsaved"}',
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              ),
+              if (_hasUnsavedChanges)
+                Text(
+                  '*',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.orange[700],
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              const Spacer(),
+              // Save button
+              TextButton.icon(
+                onPressed: saveWidgets,
+                style: ButtonStyle(
+                  padding: MaterialStateProperty.all(EdgeInsets.zero),
+                  minimumSize: MaterialStateProperty.all(const Size(0, 0)),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  overlayColor: MaterialStateProperty.all(Colors.transparent),
+                  splashFactory: NoSplash.splashFactory,
+                ),
+                icon: const Icon(Icons.save, size: 16, color: Colors.green),
+                label: const Text(
+                  'Save',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.green,
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // Edit UI link and widget controls
+        Padding(
+          padding: const EdgeInsets.only(left: 20.0, right: 20.0, bottom: 2.0),
           child: Row(
             children: [
               TextButton(
@@ -321,6 +779,7 @@ class _BluetoothControllerScreenState extends State<BluetoothControllerScreen> {
                 style: ButtonStyle(
                   padding: MaterialStateProperty.all(EdgeInsets.zero),
                   minimumSize: MaterialStateProperty.all(const Size(0, 0)),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   overlayColor: MaterialStateProperty.all(Colors.transparent),
                   splashFactory: NoSplash.splashFactory,
                 ),
@@ -329,54 +788,6 @@ class _BluetoothControllerScreenState extends State<BluetoothControllerScreen> {
                   style: TextStyle(
                     fontSize: 13,
                     color: Theme.of(context).colorScheme.primary,
-                    decoration: TextDecoration.underline,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              TextButton.icon(
-                onPressed: () async {
-                  await _loadSavedDevices();
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Device list refreshed'),
-                        duration: Duration(seconds: 1),
-                      ),
-                    );
-                  }
-                },
-                style: ButtonStyle(
-                  padding: MaterialStateProperty.all(EdgeInsets.zero),
-                  minimumSize: MaterialStateProperty.all(const Size(0, 0)),
-                  overlayColor: MaterialStateProperty.all(Colors.transparent),
-                  splashFactory: NoSplash.splashFactory,
-                ),
-                icon: const Icon(Icons.refresh, size: 16, color: Colors.blue),
-                label: const Text(
-                  'Refresh',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.blue,
-                    decoration: TextDecoration.underline,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              TextButton.icon(
-                onPressed: _saveWidgets,
-                style: ButtonStyle(
-                  padding: MaterialStateProperty.all(EdgeInsets.zero),
-                  minimumSize: MaterialStateProperty.all(const Size(0, 0)),
-                  overlayColor: MaterialStateProperty.all(Colors.transparent),
-                  splashFactory: NoSplash.splashFactory,
-                ),
-                icon: const Icon(Icons.save, size: 16, color: Colors.green),
-                label: const Text(
-                  'Save',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.green,
                     decoration: TextDecoration.underline,
                   ),
                 ),
@@ -408,6 +819,7 @@ class _BluetoothControllerScreenState extends State<BluetoothControllerScreen> {
                         (el) => el.id == _selectedWidget!.id,
                       );
                       _selectedWidget = null;
+                      _markUnsavedChanges();
                     });
                   },
                   style: ButtonStyle(
@@ -514,7 +926,14 @@ class _BluetoothControllerScreenState extends State<BluetoothControllerScreen> {
                                 as double;
                       }
                     }
+                    _markUnsavedChanges();
                   });
+                },
+                onScaleEnd: (_) {
+                  // Mark changes when user finishes gesture
+                  if (_editMode && _selectedWidget != null) {
+                    _markUnsavedChanges();
+                  }
                 },
                 child: ClipRect(
                   child: Stack(
@@ -578,9 +997,7 @@ class _BluetoothControllerScreenState extends State<BluetoothControllerScreen> {
           height: 120,
           decoration: BoxDecoration(
             color: Colors.black87,
-            border: Border(
-              top: BorderSide(color: Colors.grey[700]!, width: 1),
-            ),
+            border: Border(top: BorderSide(color: Colors.grey[700]!, width: 1)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -704,6 +1121,7 @@ class _BluetoothControllerScreenState extends State<BluetoothControllerScreen> {
     setState(() {
       _dynamicWidgets.add(widget);
       _selectedWidget = widget;
+      _markUnsavedChanges();
     });
   }
 
@@ -717,20 +1135,27 @@ class _BluetoothControllerScreenState extends State<BluetoothControllerScreen> {
     // Check actual connection state from _connectionStates map
     final connectionInfo = _connectionStates[_selectedDevice!.id];
     if (connectionInfo == null || !connectionInfo.isConnected) {
-      AppLogger.debug('Device ${_selectedDevice!.displayName} is not connected');
+      AppLogger.debug(
+        'Device ${_selectedDevice!.displayName} is not connected',
+      );
       return;
     }
 
     try {
       // Add newline character based on device type/config if needed
       final dataToSend = data.endsWith('\n') ? data : '$data\n';
-      
-      final success = await _unifiedService.sendData(_selectedDevice!.id, dataToSend);
-      
+
+      final success = await _unifiedService.sendData(
+        _selectedDevice!.id,
+        dataToSend,
+      );
+
       if (success) {
         AppLogger.debug('Sent to ${_selectedDevice!.displayName}: $data');
       } else {
-        AppLogger.debug('Failed to send to ${_selectedDevice!.displayName}: $data');
+        AppLogger.debug(
+          'Failed to send to ${_selectedDevice!.displayName}: $data',
+        );
       }
     } catch (e) {
       AppLogger.debug('Error sending data: $e');
@@ -740,11 +1165,19 @@ class _BluetoothControllerScreenState extends State<BluetoothControllerScreen> {
   void _showSetValueDialog(_DynamicWidget widget) {
     if (widget.type == _WidgetType.joystick) {
       // Joystick needs 4 separate text fields
-      final upController = TextEditingController(text: widget.joystickLabels?['up'] ?? '');
-      final downController = TextEditingController(text: widget.joystickLabels?['down'] ?? '');
-      final leftController = TextEditingController(text: widget.joystickLabels?['left'] ?? '');
-      final rightController = TextEditingController(text: widget.joystickLabels?['right'] ?? '');
-      
+      final upController = TextEditingController(
+        text: widget.joystickLabels?['up'] ?? '',
+      );
+      final downController = TextEditingController(
+        text: widget.joystickLabels?['down'] ?? '',
+      );
+      final leftController = TextEditingController(
+        text: widget.joystickLabels?['left'] ?? '',
+      );
+      final rightController = TextEditingController(
+        text: widget.joystickLabels?['right'] ?? '',
+      );
+
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
@@ -788,6 +1221,7 @@ class _BluetoothControllerScreenState extends State<BluetoothControllerScreen> {
                     'right': rightController.text,
                   };
                 });
+                _markUnsavedChanges();
                 Navigator.pop(context);
               },
               child: const Text('OK'),
@@ -798,10 +1232,16 @@ class _BluetoothControllerScreenState extends State<BluetoothControllerScreen> {
     } else if (widget.type == _WidgetType.slider) {
       // Slider needs label, min, max, and divisions
       final labelController = TextEditingController(text: widget.label);
-      final minController = TextEditingController(text: widget.sliderMin.toString());
-      final maxController = TextEditingController(text: widget.sliderMax.toString());
-      final divisionsController = TextEditingController(text: widget.sliderDivisions.toString());
-      
+      final minController = TextEditingController(
+        text: widget.sliderMin.toString(),
+      );
+      final maxController = TextEditingController(
+        text: widget.sliderMax.toString(),
+      );
+      final divisionsController = TextEditingController(
+        text: widget.sliderDivisions.toString(),
+      );
+
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
@@ -846,9 +1286,12 @@ class _BluetoothControllerScreenState extends State<BluetoothControllerScreen> {
                 setState(() {
                   widget.label = labelController.text;
                   widget.sliderMin = double.tryParse(minController.text) ?? 0.0;
-                  widget.sliderMax = double.tryParse(maxController.text) ?? 100.0;
-                  widget.sliderDivisions = int.tryParse(divisionsController.text) ?? 10;
+                  widget.sliderMax =
+                      double.tryParse(maxController.text) ?? 100.0;
+                  widget.sliderDivisions =
+                      int.tryParse(divisionsController.text) ?? 10;
                 });
+                _markUnsavedChanges();
                 Navigator.pop(context);
               },
               child: const Text('OK'),
@@ -858,12 +1301,16 @@ class _BluetoothControllerScreenState extends State<BluetoothControllerScreen> {
       );
     } else {
       // Button uses single text field
-      final TextEditingController controller = TextEditingController(text: widget.label);
-      
+      final TextEditingController controller = TextEditingController(
+        text: widget.label,
+      );
+
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
-          title: Text('Set Value for ${widget.type.toString().split('.').last}'),
+          title: Text(
+            'Set Value for ${widget.type.toString().split('.').last}',
+          ),
           content: TextField(
             controller: controller,
             decoration: const InputDecoration(
@@ -882,6 +1329,7 @@ class _BluetoothControllerScreenState extends State<BluetoothControllerScreen> {
                 setState(() {
                   widget.label = controller.text;
                 });
+                _markUnsavedChanges();
                 Navigator.pop(context);
               },
               child: const Text('Set'),
@@ -968,24 +1416,25 @@ class _BluetoothControllerScreenState extends State<BluetoothControllerScreen> {
                     max: w.sliderMax,
                     divisions: w.sliderDivisions,
                     label: w.sliderValue.toStringAsFixed(0),
-                    onChanged: _editMode ? null : (newV) {
-                      setState(() {
-                        w.sliderValue = newV;
-                      });
-                      // Send slider value to device
-                      final label = w.label.isNotEmpty ? w.label : 'slider';
-                      _sendToDevice('$label:${newV.toStringAsFixed(0)}');
-                    },
+                    onChanged: _editMode
+                        ? null
+                        : (newV) {
+                            setState(() {
+                              w.sliderValue = newV;
+                            });
+                            // Send slider value to device
+                            final label = w.label.isNotEmpty
+                                ? w.label
+                                : 'slider';
+                            _sendToDevice('$label:${newV.toStringAsFixed(0)}');
+                          },
                   ),
                 ),
               ),
               // Show current value below slider
               Text(
                 '${w.sliderValue.toStringAsFixed(0)}',
-                style: const TextStyle(
-                  fontSize: 10,
-                  color: Colors.black87,
-                ),
+                style: const TextStyle(fontSize: 10, color: Colors.black87),
               ),
             ],
           ),
@@ -996,11 +1445,13 @@ class _BluetoothControllerScreenState extends State<BluetoothControllerScreen> {
           width: w.width,
           height: w.height,
           child: ElevatedButton(
-            onPressed: _editMode ? null : () {
-              // Send button label to device
-              final label = w.label.isNotEmpty ? w.label : 'button';
-              _sendToDevice(label);
-            },
+            onPressed: _editMode
+                ? null
+                : () {
+                    // Send button label to device
+                    final label = w.label.isNotEmpty ? w.label : 'button';
+                    _sendToDevice(label);
+                  },
             style: ElevatedButton.styleFrom(
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
@@ -1029,7 +1480,7 @@ class _BluetoothControllerScreenState extends State<BluetoothControllerScreen> {
         final downLabel = w.joystickLabels?['down'] ?? '';
         final leftLabel = w.joystickLabels?['left'] ?? '';
         final rightLabel = w.joystickLabels?['right'] ?? '';
-        
+
         // Outer box respects dynamic width/height; inner joystick scales
         final double buttonSize = 32.0;
         return Center(
@@ -1050,18 +1501,27 @@ class _BluetoothControllerScreenState extends State<BluetoothControllerScreen> {
                       width: buttonSize,
                       height: buttonSize,
                       child: ElevatedButton(
-                        onPressed: _editMode ? null : () {
-                          _sendToDevice(upLabel.isNotEmpty ? upLabel : 'up');
-                        },
+                        onPressed: _editMode
+                            ? null
+                            : () {
+                                _sendToDevice(
+                                  upLabel.isNotEmpty ? upLabel : 'up',
+                                );
+                              },
                         style: ElevatedButton.styleFrom(
                           padding: EdgeInsets.zero,
                           minimumSize: Size(buttonSize, buttonSize),
-                          backgroundColor: Theme.of(context).colorScheme.primary,
+                          backgroundColor: Theme.of(
+                            context,
+                          ).colorScheme.primary,
                         ),
                         child: upLabel.isNotEmpty
                             ? Text(
                                 upLabel,
-                                style: const TextStyle(fontSize: 8, color: Colors.white),
+                                style: const TextStyle(
+                                  fontSize: 8,
+                                  color: Colors.white,
+                                ),
                                 textAlign: TextAlign.center,
                               )
                             : const Icon(Icons.arrow_drop_up, size: 20),
@@ -1077,18 +1537,27 @@ class _BluetoothControllerScreenState extends State<BluetoothControllerScreen> {
                           width: buttonSize,
                           height: buttonSize,
                           child: ElevatedButton(
-                            onPressed: _editMode ? null : () {
-                              _sendToDevice(leftLabel.isNotEmpty ? leftLabel : 'left');
-                            },
+                            onPressed: _editMode
+                                ? null
+                                : () {
+                                    _sendToDevice(
+                                      leftLabel.isNotEmpty ? leftLabel : 'left',
+                                    );
+                                  },
                             style: ElevatedButton.styleFrom(
                               padding: EdgeInsets.zero,
                               minimumSize: Size(buttonSize, buttonSize),
-                              backgroundColor: Theme.of(context).colorScheme.primary,
+                              backgroundColor: Theme.of(
+                                context,
+                              ).colorScheme.primary,
                             ),
                             child: leftLabel.isNotEmpty
                                 ? Text(
                                     leftLabel,
-                                    style: const TextStyle(fontSize: 8, color: Colors.white),
+                                    style: const TextStyle(
+                                      fontSize: 8,
+                                      color: Colors.white,
+                                    ),
                                     textAlign: TextAlign.center,
                                   )
                                 : const Icon(Icons.arrow_left, size: 18),
@@ -1102,18 +1571,29 @@ class _BluetoothControllerScreenState extends State<BluetoothControllerScreen> {
                           width: buttonSize,
                           height: buttonSize,
                           child: ElevatedButton(
-                            onPressed: _editMode ? null : () {
-                              _sendToDevice(rightLabel.isNotEmpty ? rightLabel : 'right');
-                            },
+                            onPressed: _editMode
+                                ? null
+                                : () {
+                                    _sendToDevice(
+                                      rightLabel.isNotEmpty
+                                          ? rightLabel
+                                          : 'right',
+                                    );
+                                  },
                             style: ElevatedButton.styleFrom(
                               padding: EdgeInsets.zero,
                               minimumSize: Size(buttonSize, buttonSize),
-                              backgroundColor: Theme.of(context).colorScheme.primary,
+                              backgroundColor: Theme.of(
+                                context,
+                              ).colorScheme.primary,
                             ),
                             child: rightLabel.isNotEmpty
                                 ? Text(
                                     rightLabel,
-                                    style: const TextStyle(fontSize: 8, color: Colors.white),
+                                    style: const TextStyle(
+                                      fontSize: 8,
+                                      color: Colors.white,
+                                    ),
                                     textAlign: TextAlign.center,
                                   )
                                 : const Icon(Icons.arrow_right, size: 18),
@@ -1127,18 +1607,27 @@ class _BluetoothControllerScreenState extends State<BluetoothControllerScreen> {
                       width: buttonSize,
                       height: buttonSize,
                       child: ElevatedButton(
-                        onPressed: _editMode ? null : () {
-                          _sendToDevice(downLabel.isNotEmpty ? downLabel : 'down');
-                        },
+                        onPressed: _editMode
+                            ? null
+                            : () {
+                                _sendToDevice(
+                                  downLabel.isNotEmpty ? downLabel : 'down',
+                                );
+                              },
                         style: ElevatedButton.styleFrom(
                           padding: EdgeInsets.zero,
                           minimumSize: Size(buttonSize, buttonSize),
-                          backgroundColor: Theme.of(context).colorScheme.primary,
+                          backgroundColor: Theme.of(
+                            context,
+                          ).colorScheme.primary,
                         ),
                         child: downLabel.isNotEmpty
                             ? Text(
                                 downLabel,
-                                style: const TextStyle(fontSize: 8, color: Colors.white),
+                                style: const TextStyle(
+                                  fontSize: 8,
+                                  color: Colors.white,
+                                ),
                                 textAlign: TextAlign.center,
                               )
                             : const Icon(Icons.arrow_drop_down, size: 20),
