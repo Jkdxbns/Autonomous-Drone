@@ -137,6 +137,7 @@ class _BluetoothSettingsScreenState extends State<BluetoothSettingsScreen> {
           Expanded(
             child: Scrollbar(
               child: ListView(
+                primary: false,
                 padding: const EdgeInsets.all(16),
                 children: [
                   _buildConnectionSettings(),

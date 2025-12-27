@@ -16,7 +16,7 @@ import '../../../utils/app_logger.dart';
 import '../../../core/utils/formatters/formatters.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/constants/database_constants.dart';
-import '../../../config/ui_config.dart';
+import '../../../constants/constants.dart';
 import '../../widgets/ai_assistant/recording_button.dart';
 
 /// Business logic for AI Assistant screen
@@ -81,7 +81,7 @@ class AIAssistantController {
   Future<void> _createNewConversation() async {
     final now = DateTime.now();
     final conversation = Conversation(
-      title: UIConfig.textNewChat,
+      title: AppStrings.aiNewChat,
       createdAt: now,
       lastModified: now,
     );
@@ -142,7 +142,7 @@ class AIAssistantController {
     final success = await AudioService.instance.startRecording();
 
     if (!success) {
-      _showSnackBar(UIConfig.errorMicPermission);
+      _showSnackBar(AppStrings.errorMicPermission);
       return;
     }
 
@@ -159,7 +159,7 @@ class AIAssistantController {
 
     if (duration < AppConstants.minRecordingDurationMs) {
       processingState = ProcessingState.idle;
-      _showSnackBar(UIConfig.textRecordingTooShort);
+      _showSnackBar(AppStrings.statusRecordingTooShort);
       await AudioService.instance.cancelRecording();
       return;
     }
@@ -320,7 +320,7 @@ class AIAssistantController {
       processingState = ProcessingState.idle;
       TtsService.instance.stopStreaming();
       await TtsService.instance.stop();
-      _showSnackBar(UIConfig.errorServerUnavailable);
+      _showSnackBar(AppStrings.errorServerUnavailable);
       _serverStreamSubscription = null;
     }
   }
@@ -339,7 +339,7 @@ class AIAssistantController {
       // Error occurred
       AppLogger.error('Assistant API error: ${result.error}');
       processingState = ProcessingState.idle;
-      _showSnackBar(result.error ?? UIConfig.errorServerUnavailable);
+      _showSnackBar(result.error ?? AppStrings.errorServerUnavailable);
     } else {
       // Unexpected state
       AppLogger.warning('Unexpected assistant result state');
@@ -632,7 +632,7 @@ class AIAssistantController {
     TtsService.instance.stopStreaming();
     TtsService.instance.stop();
 
-    _showSnackBar(UIConfig.errorServerUnavailable);
+    _showSnackBar(AppStrings.errorServerUnavailable);
     _serverStreamSubscription = null;
   }
 

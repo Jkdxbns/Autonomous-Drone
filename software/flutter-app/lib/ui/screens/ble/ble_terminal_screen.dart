@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import '../../../constants/app_dimensions.dart';
 import '../../../models/ble_device_config.dart';
 import '../../../services/ble/ble_service.dart';
 import '../../../utils/app_logger.dart';
@@ -159,6 +160,7 @@ class _BleTerminalScreenState extends State<BleTerminalScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        toolbarHeight: context.dimensions.appBarHeight,
         title: const Text('BLE Terminal (HM-10)'),
         backgroundColor: Colors.blue,
         actions: [

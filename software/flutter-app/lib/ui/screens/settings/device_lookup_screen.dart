@@ -21,10 +21,11 @@ class _DeviceLookupScreenState extends State<DeviceLookupScreen> {
   @override
   void initState() {
     super.initState();
-    _loadDevices();
+    loadDevices();
   }
 
-  Future<void> _loadDevices() async {
+  // Public method so it can be called from main.dart via GlobalKey
+  Future<void> loadDevices() async {
     if (!mounted) return;
     
     setState(() {
@@ -140,7 +141,7 @@ class _DeviceLookupScreenState extends State<DeviceLookupScreen> {
           await Future.delayed(const Duration(milliseconds: 300));
           // Refresh device list only if still mounted
           if (mounted) {
-            await _loadDevices();
+            await loadDevices();
           }
         }
       } else {
@@ -167,7 +168,7 @@ class _DeviceLookupScreenState extends State<DeviceLookupScreen> {
             action: SnackBarAction(
               label: 'Refresh',
               textColor: Colors.white,
-              onPressed: _loadDevices,
+              onPressed: loadDevices,
             ),
           ),
         );
@@ -198,7 +199,7 @@ class _DeviceLookupScreenState extends State<DeviceLookupScreen> {
           await Future.delayed(const Duration(milliseconds: 300));
           // Refresh device list only if still mounted
           if (mounted) {
-            await _loadDevices();
+            await loadDevices();
           }
         }
       } else {
@@ -222,19 +223,7 @@ class _DeviceLookupScreenState extends State<DeviceLookupScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: theme.colorScheme.inversePrimary,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh',
-            onPressed: _loadDevices,
-          ),
-        ],
-      ),
-      body: _buildBody(theme),
-    );
+    return _buildBody(theme);
   }
 
   Widget _buildBody(ThemeData theme) {
@@ -269,7 +258,7 @@ class _DeviceLookupScreenState extends State<DeviceLookupScreen> {
             ),
             const SizedBox(height: 16),
             ElevatedButton.icon(
-              onPressed: _loadDevices,
+              onPressed: loadDevices,
               icon: const Icon(Icons.refresh),
               label: const Text('Retry'),
             ),
